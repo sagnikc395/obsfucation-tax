@@ -1,0 +1,31 @@
+models:
+  qwen_1_5b:
+    name: "Qwen/Qwen2.5-1.5B-Instruct"
+    revision: "main"
+    dtype: "float16"
+    device_map: "auto"
+    trust_remote_code: false
+
+  qwen_3b:
+    name: "Qwen/Qwen2.5-3B-Instruct"
+    revision: "main"
+    dtype: "float16"
+    device_map: "auto"
+    trust_remote_code: false
+
+  llama_3b:
+    name: "meta-llama/Llama-3.2-3B-Instruct"
+    revision: "main"
+    dtype: "float16"
+    device_map: "auto"
+    trust_remote_code: false
+
+defaults:
+  untrusted: "qwen_1_5b"
+  trusted: "qwen_1_5b"
+  monitor: "qwen_1_5b"  # or API model e.g. gpt-4o-mini
+
+tokenizer:
+  padding_side: "left"
+  truncation: true
+  max_length: 2048

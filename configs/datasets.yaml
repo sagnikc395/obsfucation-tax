@@ -1,0 +1,30 @@
+datasets:
+  mmlu:
+    hf_name: "cais/mmlu"
+    subset: "all"
+    splits: ["test"]
+    n_train: 2000
+    n_val: 500
+    n_test: 500
+    scoring: "exact_match_letter"  # A/B/C/D
+
+  gsm8k:
+    hf_name: "openai/gsm8k"
+    subset: "main"
+    splits: ["train", "test"]
+    n_train: 2000
+    n_val: 500
+    n_test: 500
+    scoring: "numeric_exact"  # final number after ####
+
+  # fallback synthetic for CI without network
+  synthetic:
+    hf_name: null
+    n_train: 100
+    n_val: 20
+    n_test: 20
+    scoring: "exact_match_letter"
+
+defaults:
+  primary: "mmlu"
+  eval_datasets: ["mmlu", "gsm8k"]

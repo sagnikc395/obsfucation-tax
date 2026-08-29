@@ -1,0 +1,35 @@
+red_team:
+  r0:
+    description: "Prompted sandbagging, no probe knowledge"
+    prompt_id: "sandbag_r0_v1"
+
+  r1:
+    description: "Prompted sandbagging with naturalness pressure"
+    prompt_id: "sandbag_r1_v1"
+
+  r2:
+    description: "Soft-prompt / steering optimized against probe"
+    method: "soft_prompt"  # soft_prompt | steering_vector | lora_fallback
+    optimization_budget: 100
+    learning_rate: 0.01
+    evasion_strength: 1.0
+    # only optimize on validation data, never test
+    allowed_splits: ["train", "validation"]
+    probe_layer: 16
+    loss_weights:
+      evasion: 1.0
+      task_preservation: 0.5
+
+  r3:
+    description: "Transfer evasion to held-out probe"
+    method: "transfer"
+    source_layer: 16
+    heldout_layers: [12, 20]
+    heldout_data: "test"  # evaluate transfer, don't optimize on it
+
+  fallback:
+    method: "lora"
+    r: 8
+    alpha: 16
+    epochs: 1
+    lr: 2e-4

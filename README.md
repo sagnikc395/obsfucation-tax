@@ -173,6 +173,9 @@ The intended final output is:
 - The confound-control table.
 - An 8 to 10 page writeup suitable for Alignment Forum or a similar venue.
 
+For the semester-long research roadmap, phase gates, statistical plan, engineering
+priorities, and publication strategy, see [RESEARCH_PLAN.md](RESEARCH_PLAN.md).
+
 ## References
 
 - Greenblatt et al., "AI Control: Improving Safety Despite Intentional Subversion", ICML 2024: https://proceedings.mlr.press/v235/greenblatt24a.html

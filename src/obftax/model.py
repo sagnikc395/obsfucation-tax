@@ -17,7 +17,8 @@ from transformers import (
     AutoModelForImageTextToText,
 )
 
-from .config import LAYERS, MAX_TOP2_POS, POOLINGS, THINKING
+from . import config
+from .config import LAYERS, MAX_TOP2_POS, POOLINGS
 
 THINK_OPEN, THINK_CLOSE = "<think>", "</think>"
 
@@ -76,7 +77,7 @@ def decoder_layers(model, n_layers=None):
 
 def build_chat_prompt(tok, messages, thinking=None):
     """`thinking` defaults to config.THINKING. Templates without a think block ignore it."""
-    thinking = THINKING if thinking is None else thinking
+    thinking = config.THINKING if thinking is None else thinking
     kw = {"enable_thinking": bool(thinking)} if "think" in (tok.chat_template or "") else {}
     return tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, **kw)
 
@@ -94,7 +95,7 @@ def check_thinking(tok, thinking=None):
     tokens" the probe reads will be reasoning tokens. With thinking on the block must NOT
     be pre-closed, or the model has been told to skip reasoning.
     """
-    thinking = THINKING if thinking is None else thinking
+    thinking = config.THINKING if thinking is None else thinking
     p = build_prompt(tok, "sys", "user", thinking=thinking)
     if "think" in (tok.chat_template or ""):
         closed = THINK_CLOSE in p
@@ -154,7 +155,7 @@ def split_generation(new_ids, tok):
     stays defined; `closed` is False and the run reports the rate separately. Those rows
     are a budget failure, not an attack.
     """
-    start, closed = (answer_start(new_ids, tok) if THINKING else (0, True))
+    start, closed = (answer_start(new_ids, tok) if config.THINKING else (0, True))
     answer_ids = new_ids[start:] if closed else []
 
     if not answer_ids:

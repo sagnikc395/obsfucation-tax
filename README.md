@@ -55,9 +55,6 @@ over answer tokens only.
 
 ## Status
 
-The code runs. A 96-problem smoke run of `01_preconditions.ipynb` went through on an
-A100: every cell executed, every file was written, and the model scores 43.8% honest on
-`cruxeval`.
 
 The real run has not been done, because the smoke run turned up two problems first.
 
@@ -102,64 +99,21 @@ whole function scored by running its tests, is deferred. It costs ten times the 
 time and has to execute model-written code, and the gates can be decided without it.
 Turning it on is one line, and the last section of that notebook says what to expect.
 
-## The notebooks
+## Sandbagging Evals and Monitoring
 
-Run them in order. Each one reads the previous one's files out of `results/` and nothing
-else.
-
-| notebook | what it answers | state |
-| --- | --- | --- |
-| [`01_preconditions.ipynb`](notebooks/01_preconditions.ipynb) | Does sandbagging work, does a probe see it, and is the probe cheating? | smoke run done, `cruxeval` only |
-| [`02_attack_curve.ipynb`](notebooks/02_attack_curve.ipynb) | The monitor, the evasion curve, and whether evasion transfers to an untouched layer. This is the table. | written, blocked on 01 |
-| [`03_mechinterp.ipynb`](notebooks/03_mechinterp.ipynb) | Is the probe direction load-bearing? Where does the policy live? Does any of it survive in-context learning? | written, future work |
-
-Notebooks 02 and 03 refit the probe from 01's saved activations, under the same seeded
-split, so the test half is only ever used once.
-
-## Running it
-
-Nothing is installed as a package. `src/obftax` goes on `sys.path` and is imported in
-place, so editing it takes effect on the next cell run. The first cell of every notebook
-does the setup and clones the repo if it is not already there.
-
-On Colab: open a notebook, pick a GPU, run the cells.
-
-Locally, `uv` handles the dependencies and nothing else:
-
-```bash
-uv sync
-uv run jupyter lab notebooks
-```
-
-`01_preconditions.ipynb` starts with `SMOKE = True`, which runs the whole notebook on 96
-problems in a couple of minutes under its own `_smoke` tag. The attack-count gate cannot
-pass at that size, so ignore it. The rates and the controls are still readable, which is
-how the problems above were found. Set `SMOKE = False` for the real run, about fifteen
-minutes on an A100.
-
-Defaults live in `src/obftax/config.py` rather than in the notebooks: layers
-12/16/20/24/28 with layer 20 as the headline, 400 problems, seed 42. Each notebook's
-config cell overrides them. Everything computed is written to `results/` as JSON, CSV and
-`.npz`. No number is typed into source.
+- [`01_preconditions.ipynb`](notebooks/01_preconditions.ipynb)
+   - Does sandbagging work, does a probe see it, and is the probe cheating? 
+- [`02_attack_curve.ipynb`](notebooks/02_attack_curve.ipynb)
+   - The monitor, the evasion curve, and whether evasion transfers to an untouched layer. This is the table.
+- [`03_mechinterp.ipynb`](notebooks/03_mechinterp.ipynb)
+   - Is the probe direction load-bearing? Where does the policy live? Does any of it survive in-context learning? 
 
 
 ## Datasets
 
-| track | dataset | size | the model emits | scoring |
-| --- | --- | --- | --- | --- |
-| `cruxeval` | [`cruxeval-org/cruxeval`](https://huggingface.co/datasets/cruxeval-org/cruxeval) | 800 | one Python literal | exact match on the parsed literal |
-| `mbpp` | [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) | 500 | a whole function | run the official asserts |
-| `humaneval` | [`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) | 164 | a whole function | run the official `check()` |
+[`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) 
+[`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) 
 
-`evalplus/mbppplus` and `evalplus/humanevalplus` are drop-in swaps with harder tests, and
-are the right move once the headline numbers exist.
-
-`mbpp` and `humaneval` execute model-generated code in a subprocess under CPU, memory and
-wall-clock limits. That is fine on a disposable Colab VM. Do not run those tracks on a
-machine you care about. Neither is on by default.
-
-The ordered steps, the gate each one has to clear, and what is deliberately left out are
-in [RESEARCH_PLAN.md](RESEARCH_PLAN.md).
 
 ## References
 

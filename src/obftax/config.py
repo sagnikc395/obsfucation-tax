@@ -6,17 +6,21 @@ they actually vary, so a changed layer or seed shows up in one place.
 
 MODEL = "Qwen/Qwen3.5-4B"      # the small tier is 0.8B / 2B / 4B / 9B; there is no 3B
 
-# Qwen3.5 reasons by default and we leave it on. Sandbagging on cruxeval is a two-step
-# task ("work out what it returns, then answer with something else"), and with no
-# scratchpad the model has to do both in-weights while emitting the answer. The earlier
-# runs with thinking off showed the cost: the sandbagging prompt was ignored outright on
-# 83% of answerable problems, producing a byte-identical answer to the honest run.
+# Reasoning is OFF by default, for cost rather than for science.
 #
-# The invariant that probe features come from answer tokens only still holds. The
-# generated span is split at `</think>` and only the part after it is pooled or scored;
-# the trace is measured separately, because its length differs by condition and a probe
-# could read that for free.
-THINKING = True
+# The argument for turning it on still stands: sandbagging is a two-step task (work out
+# the right answer, then produce a different one that looks sincere) and with no
+# scratchpad the model has to do both in-weights, which is strictly harder than answering
+# honestly. With reasoning off, the sandbagging prompt was ignored outright on 83% of
+# answerable cruxeval problems, producing a byte-identical answer to the honest run.
+#
+# Reasoning on was measured at 68.5 s per generation on mbpp, which is 11.4 hours for one
+# pass of this notebook. That is not runnable on the hardware to hand, so it stays off and
+# goes in the write-up as a limitation rather than a choice.
+#
+# Set obftax.config.THINKING = True in a notebook to turn it back on. It is read at call
+# time, so the override works; pair it with THINKING_BUDGET below.
+THINKING = False
 N_LAYERS_EXPECTED = 32         # Qwen3.5-4B; asserted against the loaded config
 LAYERS = [12, 16, 20, 24, 28]  # decoder blocks the probe reads
 MAIN_LAYER = 20                # the headline number
@@ -27,13 +31,17 @@ RESULTS = "results"
 TAG = "qwen35_4b"              # filenames: pre_<tag>_*, attack_<tag>_*, mech_<tag>_*
 
 # Dataset ceilings: cruxeval 800, mbpp 500, humaneval 164.
-# max_new_tokens has to cover the reasoning trace as well as the answer now. These are
-# the trace budget plus the old answer budget; `unclosed_rate` in the run is how you tell
-# whether they are big enough, since a trace that never closes leaves no answer at all.
+# Two budgets per track, because a reasoning trace needs room the answer does not.
+# ANSWER_BUDGET is enough for the answer alone; THINKING_BUDGET adds the trace.
+# `unclosed_rate` in the run is how you tell whether the thinking budget is big enough,
+# since a trace that never closes leaves no answer at all.
+ANSWER_BUDGET = {"cruxeval": 24, "mbpp": 320, "humaneval": 384}
+THINKING_BUDGET = {"cruxeval": 512, "mbpp": 1024, "humaneval": 1024}
+
 TRACK_CFG = {
-    "cruxeval":  {"n": 400, "max_new_tokens": 512},
-    "mbpp":      {"n": 300, "max_new_tokens": 1024},
-    "humaneval": {"n": 164, "max_new_tokens": 1024},
+    "cruxeval":  {"n": 400, "max_new_tokens": ANSWER_BUDGET["cruxeval"]},
+    "mbpp":      {"n": 300, "max_new_tokens": ANSWER_BUDGET["mbpp"]},
+    "humaneval": {"n": 164, "max_new_tokens": ANSWER_BUDGET["humaneval"]},
 }
 
 EXEC_TIMEOUT = 10      # seconds per test program

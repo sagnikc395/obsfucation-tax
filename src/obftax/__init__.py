@@ -22,7 +22,6 @@ from .analysis import (
 )
 from .config import (
     LAYERS,
-    THINKING,
     MAIN_LAYER,
     MAIN_POOL,
     MIN_ATTACKS,
@@ -73,7 +72,7 @@ from .tasks import LOADERS, load_track
 
 __all__ = [
     "analysis", "config", "hooks", "model", "probes", "scoring", "storage", "tasks",
-    "LAYERS", "MAIN_LAYER", "MAIN_POOL", "MIN_ATTACKS", "MIN_AUROC", "MODEL", "THINKING",
+    "LAYERS", "MAIN_LAYER", "MAIN_POOL", "MIN_ATTACKS", "MIN_AUROC", "MODEL",
     "POOLINGS", "PROMPTS", "RESULTS", "SEED", "TAG", "TRACK_CFG",
     "LOADERS", "load_track",
     "check_harness", "clean_literal", "extract_code", "parses_as_literal",

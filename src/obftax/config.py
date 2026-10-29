@@ -5,6 +5,18 @@ they actually vary, so a changed layer or seed shows up in one place.
 """
 
 MODEL = "Qwen/Qwen3.5-4B"      # the small tier is 0.8B / 2B / 4B / 9B; there is no 3B
+
+# Qwen3.5 reasons by default and we leave it on. Sandbagging on cruxeval is a two-step
+# task ("work out what it returns, then answer with something else"), and with no
+# scratchpad the model has to do both in-weights while emitting the answer. The earlier
+# runs with thinking off showed the cost: the sandbagging prompt was ignored outright on
+# 83% of answerable problems, producing a byte-identical answer to the honest run.
+#
+# The invariant that probe features come from answer tokens only still holds. The
+# generated span is split at `</think>` and only the part after it is pooled or scored;
+# the trace is measured separately, because its length differs by condition and a probe
+# could read that for free.
+THINKING = True
 N_LAYERS_EXPECTED = 32         # Qwen3.5-4B; asserted against the loaded config
 LAYERS = [12, 16, 20, 24, 28]  # decoder blocks the probe reads
 MAIN_LAYER = 20                # the headline number
@@ -15,10 +27,13 @@ RESULTS = "results"
 TAG = "qwen35_4b"              # filenames: pre_<tag>_*, attack_<tag>_*, mech_<tag>_*
 
 # Dataset ceilings: cruxeval 800, mbpp 500, humaneval 164.
+# max_new_tokens has to cover the reasoning trace as well as the answer now. These are
+# the trace budget plus the old answer budget; `unclosed_rate` in the run is how you tell
+# whether they are big enough, since a trace that never closes leaves no answer at all.
 TRACK_CFG = {
-    "cruxeval":  {"n": 400, "max_new_tokens": 24},
-    "mbpp":      {"n": 300, "max_new_tokens": 320},
-    "humaneval": {"n": 164, "max_new_tokens": 384},
+    "cruxeval":  {"n": 400, "max_new_tokens": 512},
+    "mbpp":      {"n": 300, "max_new_tokens": 1024},
+    "humaneval": {"n": 164, "max_new_tokens": 1024},
 }
 
 EXEC_TIMEOUT = 10      # seconds per test program

@@ -7,8 +7,20 @@ requires-python = ">=3.11"
 dependencies = [
     "accelerate>=1.14.0",
     "datasets>=3.0.0",
+    "matplotlib>=3.8.0",
     "numpy>=1.26.0",
+    "pandas>=2.0.0",
     "scikit-learn>=1.4.0",
+    "scipy>=1.11.0",
     "torch>=2.4.0",
-    "transformers>=4.44.0",
+    # Qwen3.5 landed in transformers 5.2, but the gated-delta-net cached-forward fix
+    # (PR #45513) only shipped in 5.7, and this code generates with the cache.
+    "transformers>=5.7.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/obftax"]

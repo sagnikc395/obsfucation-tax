@@ -8,14 +8,24 @@ Keep this file short. If a step grows its own design document, the step is too b
 
 ## Where the code is now
 
-`obftax.py` answers two yes/no questions:
+The steps below are numbered from 1; there is no step 0. `notebooks/obftax.ipynb` is
+steps 1–2, `notebooks/obftax_attack.ipynb` is steps 3–5, and
+`notebooks/obftax_mechinterp.ipynb` is the Future work section further down.
+
+`obftax.py`, and `notebooks/obftax.ipynb`, answer two yes/no questions:
 
 1. Does the sandbagging prompt produce a real accuracy drop?
 2. Does a linear probe on answer-token activations separate honest answers from
    successful attacks?
 
 Everything below assumes both are yes. Both have to be yes on the real model
-(`Qwen2.5-1.5B-Instruct`, 200 questions), not on the 0.5B smoke test.
+(`Qwen/Qwen3.5-4B`, 300 problems per track), not on a 2B smoke test.
+
+Two task tracks, and they are allowed to disagree. `cruxeval` is code reasoning with a
+one-literal answer, which keeps scoring exact and the answer short. `mbpp` is code
+generation scored by running the official tests, which is the sabotage setting the
+project's claim needs to be about, at the cost of executing untrusted code and pooling
+features over a few hundred answer tokens rather than a handful.
 
 ## The result this is building towards
 
@@ -41,6 +51,12 @@ worse than crashing.
 - An example counts as an attack only when the model answers correctly under the
   honest prompt and incorrectly under the sandbagging prompt. A sandbagging prompt
   that changes nothing is not an attack.
+- On the generation tracks, sabotaged code that does not compile is breakage, not
+  evasion. `syntax_ok` is recorded separately and `attacked_clean` is the mask that
+  requires it, for the same reason step 4 reports the parse rate.
+- Thinking stays off (`enable_thinking=False`, asserted). With it on, the answer budget
+  is spent reasoning and the probe's "answer tokens" are reasoning tokens, which is a
+  different experiment — see Future work.
 - Probe features come from answer tokens only. Never prompt tokens.
 - The test half is used once, for the final table. Layer choice, steering strength
   search, and prompt wording get decided on the train half.
@@ -54,13 +70,17 @@ worse than crashing.
 
 ### 1. Confirm the preconditions on the real model
 
-Run `obftax.py` as configured. Record honest accuracy, sandbagging accuracy, count of
-successful attacks, probe AUROC.
+Run `obftax.py` as configured, on both tracks. Record honest accuracy, sandbagging
+accuracy, count of successful attacks, probe AUROC per (pooling, layer).
 
-Gate: at least ~40 successful attacks out of 200 questions, and probe AUROC
-comfortably above 0.5. Fewer attacks than that and the probe is fitting a handful of
-examples. If the drop is small, try a blunter sandbagging prompt first, then a bigger
-model. If AUROC is near chance there is nothing to evade and the project stops here.
+Gate: at least ~40 successful attacks per track, and probe AUROC comfortably above 0.5.
+Fewer attacks than that and the probe is fitting a handful of examples. If the drop is
+small, try a blunter sandbagging prompt first, then `Qwen/Qwen3.5-9B`. If AUROC is near
+chance there is nothing to evade and the project stops here.
+
+On `mbpp`, check `sandbag_syntax_ok` and the `detail` column before concluding the attack
+failed: a model that sabotages by emitting code that does not compile is failing
+differently from one that declines to sabotage, and the fix is different.
 
 ### 2. Rule out the three ways the probe wins for free
 
@@ -104,13 +124,13 @@ through roughly 0, 1, 2, 4, 8, picked on the train half, and fill in the table.
 Two things to check before trusting any row:
 
 - The sign is right: probe scores on steered generations must go down, not up.
-- Report the fraction of answers that stop parsing as a letter. A model steered into
-  incoherence has not evaded the probe, it has broken, and a falling AUROC there means
-  nothing.
+- Report the fraction of answers that stop being valid: an unparseable literal on
+  `cruxeval`, code that does not compile on `mbpp`. A model steered into incoherence has
+  not evaded the probe, it has broken, and a falling AUROC there means nothing.
 
-Steering every position is a choice, not the only one. Answer positions only is the
-alternative, and is closer to an attacker who controls its own behaviour rather than
-its own prompt processing. Worth running both if the first one works.
+Steering every position is one choice; steering answer positions only is the other, and
+it is closer to an attacker who controls its own behaviour rather than its own prompt
+processing. Worth running both if the first one works.
 
 ### 5. Transfer
 
@@ -121,6 +141,9 @@ This is the step that decides how much the result is worth. Evasion that only be
 exact weights it was optimised against is a much weaker attack than one that
 generalises, and a defender who can retrain at a new layer is in a much better
 position. Report both AUROCs in the same table.
+
+Steps 3 to 5 are implemented in `notebooks/obftax_attack.ipynb`, which writes the table
+to `results/attack_<tag>_table.csv`.
 
 ### 6. Write it up
 
@@ -141,11 +164,110 @@ Each of these was in the previous plan and is cut until the table above exists.
 - RL or LoRA training of the attacker. A steering vector is the cheapest adaptive
   attacker that is still a real attacker. Train one only if steering fails to evade at
   any strength that preserves the attack.
-- Second dataset (GSM8K), second model, bootstrapped confidence intervals, multiple
-  seeds. All of these are replication, and belong after there is one result to
-  replicate. Confidence intervals come back in for the write-up.
+- Harder test suites (`evalplus/mbppplus`, `evalplus/humanevalplus`), LiveCodeBench,
+  a second model, bootstrapped confidence intervals, multiple seeds. All of these are
+  replication, and belong after there is one result to replicate. Confidence intervals
+  come back in for the write-up.
 - ControlArena and Inspect. The pipeline is four scripts over cached files and does not
   need an eval framework.
+
+## Future work
+
+Three directions, none of them step 7. Each is its own project. They are written down
+here so the measurement above is built in a way that does not block them.
+
+The first three are implemented in `notebooks/obftax_mechinterp.ipynb`: the causal check
+on the probe direction, the decision-subspace overlap, residual-stream patching by layer,
+and the ICL sweep including the pre-emptive probe.
+
+### Obfuscation that arrives through in-context learning
+
+The sandbagging policy is currently handed over in a system prompt, which is the easy
+case for a defender: the instruction sits in the context window, and a text monitor
+reading the prompt catches it. The harder case is a policy the model infers from
+in-context examples — `k` demonstrations of plausible-but-wrong answers and no
+instruction anywhere. Then there is nothing to read. The policy exists only as
+something the model computed from the demos.
+
+Questions, cheapest first:
+
+- **Does ICL-induced sandbagging reproduce the step 1 numbers?** Same accuracy-drop and
+  probe-AUROC measurement, `k` demos in place of `SANDBAG`. If the drop needs many
+  demos to appear, that is itself the result.
+- **Can it be detected before the answer exists?** The invariant above restricts probe
+  features to answer tokens, which is right for measuring behaviour. Prediction is a
+  different question: train a probe on the activations at the last prompt token, after
+  the demos and before a single answer token is generated, and ask whether it predicts
+  that this rollout will be an attack. A probe that works there is a pre-emptive
+  detector, worth considerably more to a defender than a post-hoc one.
+- **How does detectability scale with `k`?** Sweep `k` = 0, 1, 2, 4, 8, 16 and report
+  both AUROCs against it. ICL task representations tend to appear abruptly rather than
+  accumulate smoothly, so the shape of that curve is the finding.
+- **Is ICL obfuscation the same object as prompted obfuscation?** Train the probe on
+  prompted sandbagging and test on ICL sandbagging, then the reverse. Transfer means one
+  representation and the prompted result generalises. No transfer means the
+  system-prompt result says nothing about the ICL case, which is the more interesting
+  outcome and the one that would need its own detector.
+
+The label gets harder here. With no instruction, "deliberate" is ambiguous: a model
+copying wrong demos may be pattern-matching rather than choosing. Define the label
+behaviourally — correct without the demos, wrong with them — and say that is what it
+means, rather than claiming intent the experiment cannot see.
+
+### A mechanistic account instead of a probe score
+
+A probe says a direction exists. It does not say the direction is load-bearing. Three
+things to do, in order:
+
+- **Causal check on the direction.** Project the probe direction out of the residual
+  stream at the probe layer during generation, and measure the accuracy drop. If
+  sandbagging survives with the direction gone, the probe reads a correlate and its
+  AUROC overstates the defence. This is the same hook as step 4 with `alpha` replaced by
+  a projection, so it costs almost nothing once steering works.
+- **Localise the ICL case.** With demos the policy has to travel from the demo tokens to
+  the answer position, which is a path-patching question: patch demo-token activations
+  from an honest-demo run into a sandbagging run, head by head, and find the heads that
+  carry it. Induction-style heads are the obvious hypothesis and the obvious thing to
+  falsify by ablating them and checking whether the attack collapses.
+- **Compare the probe direction to the mechanism.** If the probe direction lies mostly
+  inside the span of the directions that decide the next token, the probe is reading the
+  decision rather than the intent — and the wrongness control in step 2 will already
+  have hinted at it. `obftax.py` reports that overlap already, as the mean
+  `|cos(w, u)|` over answer positions where `u = W_U[top1] - W_U[top2]`. Note Qwen3.5 is
+  a hybrid architecture, mostly gated linear attention rather than softmax attention, so
+  head-level patching needs adapting and the linear-attention state is itself somewhere a
+  policy could be carried.
+
+### Bounds on what evasion can cost
+
+The table is empirical and model-specific. A bound would say which shapes are possible
+at all. The tractable version:
+
+The attacker needs two things simultaneously. The probe score `w·h` has to be low, and
+at every answer position its own chosen token has to stay ahead of the runner-up, which
+is a constraint on `h` along `u = W_U[top1] - W_U[top2]`. If `w` is orthogonal to those
+directions, the two constraints are independent and evasion is first-order free. The more
+`w` aligns with them, the more reducing `w·h` costs attack strength. So `cos(w, u)` over
+answer positions is a first-order predictor of the tax. `obftax.py` already computes and
+saves it, from the top-2 logit ids recorded during the run, so it is testable against the
+measured curve without re-running anything.
+
+It is only first order. The model is not linear from the probe layer to the logits, and
+the attacker can route around the constraint through other layers. Both show up as a gap
+between the predicted tax and the measured one, which makes the gap the interesting
+number rather than a failure of the bound.
+
+Two extensions worth stating now:
+
+- **Probe ensembles.** Against `k` probes the attacker's feasible set loses `k`
+  dimensions, so the tax should grow with `k`. That is the defender's real lever and it
+  is cheap to measure: train `k` probes on different splits or layers, steer against all
+  of them, and report tax against `k`.
+- **The repeated game.** A defender who retrains after each evasion, against an attacker
+  who re-evades, is the setting that actually matters. A bound on how many rounds the
+  defender can be forced through, or on whether the process converges at all, would say
+  more than any single curve. `RL-Obfuscation` is the comparison point for what one
+  round of a learned attacker costs.
 
 ## Open questions
 
@@ -155,8 +277,10 @@ made, since each one changes what the number means.
 - Whether a steering vector is a fair stand-in for an adaptive attacker at all. It is
   an intervention on the model, not a policy the model learned, and `RL-Obfuscation` is
   the comparison point for how much that matters.
-- Whether prompted sandbagging on multiple choice is too easy to be informative. There
-  are only four tokens to choose between, so "deliberately wrong" may have an unusually
-  clean representation.
-- Whether mean-pooling over answer tokens is hiding the signal. With 8-token answers
-  there is not much to pool, and the last token may be the whole story.
+- Whether `cruxeval`-style sandbagging is too easy to be informative. The answer is one
+  literal, so "deliberately wrong" may have an unusually clean representation compared
+  with sabotaging a whole function. This is most of why `mbpp` is run alongside it.
+- Whether mean-pooling over answer tokens is hiding the signal. On `cruxeval` there is
+  little to pool and the last token may be the whole story; on `mbpp` the answer is a few
+  hundred tokens and the mean may dilute the signal away entirely. Three poolings (whole
+  answer, last token, last 32) are recorded so this is measured rather than assumed.

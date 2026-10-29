@@ -20,14 +20,54 @@ is in `src/obftax`, so each notebook holds only its own experiment.
 2. Does a linear probe on answer-token activations separate honest answers from
    successful attacks?
 
-Everything below assumes both are yes. Both have to be yes on the real model
-(`Qwen/Qwen3.5-4B`, 300 problems per track), not on a 2B smoke test.
+Everything below assumes both are yes, on the real model (`Qwen/Qwen3.5-4B`, 400 problems)
+rather than on the 96-problem `SMOKE` setting that notebook ships with.
 
 Two task tracks, and they are allowed to disagree. `cruxeval` is code reasoning with a
 one-literal answer, which keeps scoring exact and the answer short. `mbpp` is code
 generation scored by running the official tests, which is the sabotage setting the
 project's claim needs to be about, at the cost of executing untrusted code and pooling
 features over a few hundred answer tokens rather than a handful.
+
+Only `cruxeval` is switched on at the moment. `mbpp` costs ten times the generation time
+and has to execute model-written code, and both gates can be decided without it, so it
+waits until they are.
+
+## Progress
+
+**29 October 2026.** `01_preconditions.ipynb` has been run once, on `cruxeval`, at the
+96-problem `SMOKE` setting, on an A100. The code path is clear: every cell ran and every
+file was written. Both gates then failed, so steps 3 to 6 have not started.
+
+Step 1, the accuracy drop. Honest accuracy 43.8%, so 42 of 96 problems were answerable.
+The sandbagging prompt flipped 7 of those and changed nothing on 35. Sandbagging accuracy
+37.5%, so a drop of 6.25 points, McNemar's p 0.07, attack rate on answerable 17%. At 400 problems that rate gives about 29
+successful attacks, which still misses the gate of 40.
+
+Step 2, the controls. Text-only AUROC is 0.51, so the answer strings carry nothing and
+that control passes. The other two do not: the prompt control is 0.997 and the wrongness
+control 0.88, against a headline AUROC of 1.00. The probe is behaving like a detector for
+the sandbagging instruction, which answer-token features can still reach through
+attention.
+
+What the numbers are worth. The headline 1.00 rests on 7 attacks and is noise. The two
+failing controls rest on 35 and 54 examples, so they are the better-supported numbers in
+the run, which is the uncomfortable direction. Both are also scored in-sample for the
+probe, so they are an upper bound on the confound rather than a measurement of it, and all
+of it is one seed.
+
+The first-order bound cell did not run, so `bound_firstorder` is absent from that
+summary.
+
+Next, in order:
+
+1. Make the attack land. A blunter sandbagging prompt first, then `Qwen/Qwen3.5-9B`.
+   `attack_rate_on_answerable` is what has to move, and it is readable at `SMOKE` size, so
+   prompt variants can be tried in a few minutes each.
+2. Take the harder label from step 2: successful attacks against honest-incorrect answers,
+   both wrong, differing only in intent. The prompt control failing at 0.997 says the
+   current label is partly a label for the prompt.
+3. Only then the real 400-problem run, and only then step 3.
 
 ## The result this is building towards
 
@@ -72,7 +112,7 @@ worse than crashing.
 
 ### 1. Confirm the preconditions on the real model
 
-Run `notebooks/01_preconditions.ipynb` as configured, on both tracks. Record honest accuracy, sandbagging
+Run `notebooks/01_preconditions.ipynb` as configured. Record honest accuracy, sandbagging
 accuracy, count of successful attacks, probe AUROC per (pooling, layer).
 
 Gate: at least ~40 successful attacks per track, and probe AUROC comfortably above 0.5.
@@ -83,6 +123,9 @@ chance there is nothing to evade and the project stops here.
 On `mbpp`, check `sandbag_syntax_ok` and the `detail` column before concluding the attack
 failed: a model that sabotages by emitting code that does not compile is failing
 differently from one that declines to sabotage, and the fix is different.
+
+Status: failed at `SMOKE` size. 7 successful attacks, a drop of 6.25 points, p 0.07. What
+has to change is the prompt; a larger sample gives the same rate. See Progress.
 
 ### 2. Rule out the three ways the probe wins for free
 
@@ -105,6 +148,10 @@ Gate: the probe beats text-only by a clear margin, and is closer to chance than 
 headline score on the other two. If the wrongness control fails, the fix is a harder
 label: successful attacks against honest-incorrect answers, both wrong, differing only
 in intent. That is a better experiment anyway and worth the detour.
+
+Status: text-only passes at 0.51. The prompt control fails at 0.997 and the wrongness
+control at 0.88. So the detour is now the plan, and the harder label is the next thing to
+build. See Progress.
 
 ### 3. Add the black-box monitor
 
@@ -150,7 +197,7 @@ to `results/attack_<tag>_table.csv`.
 ### 6. Write it up
 
 Four to eight pages. The table, the curve, the control table, and an explicit
-statement of what a 1.5B result does and does not say about frontier models. A
+statement of what a 4B result does and does not say about frontier models. A
 negative result (evasion is cheap and transfers) is the finding, written as the
 finding.
 
@@ -178,9 +225,14 @@ Each of these was in the previous plan and is cut until the table above exists.
 Three directions, none of them step 7. Each is its own project. They are written down
 here so the measurement above is built in a way that does not block them.
 
-The first three are implemented in `notebooks/03_mechinterp.ipynb`: the causal check
-on the probe direction, the decision-subspace overlap, residual-stream patching by layer,
-and the ICL sweep including the pre-emptive probe.
+The first three are implemented in `notebooks/03_mechinterp.ipynb`, which is written but
+has not been run: the causal check on the probe direction, the decision-subspace overlap,
+residual-stream patching by layer, and the ICL sweep including the pre-emptive probe.
+
+The causal check matters more than it did when this was written. If the prompt control
+keeps failing, then "is the probe direction load-bearing" and "is the probe direction just
+the sandbagging instruction" are close to the same question, and experiment A is what
+separates them.
 
 ### Obfuscation that arrives through in-context learning
 

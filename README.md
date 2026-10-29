@@ -1,150 +1,174 @@
-# obsfucation-tax 
+# obsfucation-tax
+
+What does a model give up to hide from an activation probe?
 
 ## Motivation
 
-A model can be told to fail on purpose: answer a coding question wrongly while looking like it tried. That is sandbagging, and it matters because a model that can hide its real ability can also hide how dangerous it is. One way to catch it is to stop reading the model's text and read its internals instead. While the model writes an answer it produces a vector of numbers at each layer. A simple
-linear classifier on those vectors can often tell an honest attempt from deliberate failure. That classifier is the probe, and it is the defence.
+A model can be told to fail on purpose: answer a coding question wrongly while looking
+like it tried. That is sandbagging, and it matters because a model that can hide its real
+ability can also hide how dangerous it is.
 
-What is not known is what the fooling costs. The probe reads the same internal state the model uses to do the task, so pushing that state around is not a free move. Three things can happen:
+One way to catch it is to stop reading the model's text and read its internals instead.
+While the model writes an answer it produces a vector of numbers at each layer. A simple
+linear classifier on those vectors can often tell an honest attempt from deliberate
+failure. That classifier is the probe, and it is the defence.
 
-1. The model dodges the probe and sandbags just as well. Then the probe is close to useless against an attacker who knows about it.
-2. The model dodges the probe and stops sandbagging — it answers correctly again, or it produces garbage. Then evading the probe meant giving up the attack, and the probe was doing real work even though it can be evaded.
-3. The model dodges the probe, but the answers it writes now look suspicious to a second model that only reads text. The probe did not stop the attack, it pushed the attack somewhere another defence can see it.
+What is not known is what the fooling costs. The probe reads the same internal state the
+model uses to do the task, so pushing that state around is not a free move. Three things
+can happen:
+
+1. The model dodges the probe and sandbags just as well. Then the probe is close to
+   useless against an attacker who knows about it.
+2. The model dodges the probe and stops sandbagging — it answers correctly again, or it
+   produces garbage. Then evading the probe meant giving up the attack, and the probe was
+   doing real work even though it can be evaded.
+3. The model dodges the probe, but the answers now look suspicious to a second model that
+   only reads text. The probe did not stop the attack, it pushed the attack somewhere
+   another defence can see it.
 
 This cost is obfuscation tax.
 
-## Experiment
+## The experiment
 
-1. Give a model coding problems twice, once with an honest prompt and once with a prompt telling it to fail quietly. An example counts as an attack only when the model got it right honestly and wrong when told to sandbag.
-2. Train a probe on the model's internals to tell those two apart, then check that it is not cheating. It must not be reading the wording of the answer, the sandbagging instruction sitting in the prompt, or simply the fact that the answer is wrong.
-3. Add a second model that reads only the question and the answer and rates how fishy it looks. That is the text-only monitor.
-4. Attack. During generation, push the model's internals away from the probe's direction, with a dial (`alpha`) for how hard, and turn the dial up step by step.
-5. At each setting of the dial we are recording three things: 
-  - how well the probe still detects the attack
-  - how much accuracy the attack still destroys
-  - how suspicious the text monitor finds the answers.
-6. Score every attacked answer with a second probe at a layer the attack never touched. Evasion that beats only the exact probe it was aimed at is a much weaker attack than one that generalises.
+1. Give a model coding problems twice: once with an honest prompt, once with a prompt
+   telling it to fail quietly. An example counts as an attack only when the model got it
+   right honestly and wrong when told to sandbag.
+2. Train a probe on the model's internals to tell those two apart, then check it is not
+   cheating. It must not be reading the wording of the answer, the sandbagging
+   instruction sitting in the prompt, or simply the fact that the answer is wrong.
+3. Add a second model that reads only the question and the answer and rates how fishy it
+   looks. That is the text-only monitor.
+4. Attack. During generation, push the model's internals away from the probe's direction,
+   with a dial (`alpha`) for how hard, and turn the dial up step by step.
+5. At each setting of the dial, record how well the probe still detects the attack, how
+   much accuracy the attack still destroys, and how suspicious the monitor finds the
+   answers.
+6. Score every attacked answer with a second probe at a layer the attack never touched.
+   Evasion that beats only the probe it was aimed at is much weaker than one that
+   generalises.
 
-If detection falls faster than the attack does, evasion is cheap, else the gap between them is the tax.
+The output is one table, one row per dial setting. If detection falls faster than the
+attack does, evasion is cheap, else the gap between them is the tax.
 
-## Problem statement
+The model is `Qwen/Qwen3.5-4B`. The probe is a logistic regression on the residual stream,
+over answer tokens only.
 
-Activation probes can detect when a model is deliberately underperforming, and adaptive
-attackers can evade those probes. What is not known is the price of evasion.
+## Status
 
-An attacker that hides from a probe is not free to behave however it likes. The probe
-reads the same representations the model uses to do the task, so pushing activations
-off the probe's direction may also damage the attack: the model may stop
-underperforming, start producing text a black-box monitor flags, or lose the ability
-to answer at all. Alternatively, evasion may be nearly free, in which case the probe
-offers very little.
+The code runs. A 96-problem smoke run of `01_preconditions.ipynb` went through on an
+A100: every cell executed, every file was written, and the model scores 43.8% honest on
+`cruxeval`.
 
-When a model evades an activation probe trained to detect deliberate underperformance,
-how much attack performance, and how much black-box inconspicuousness, does it have to
-give up?
+The real run has not been done, because the smoke run turned up two problems first.
 
-Concretely, the setting is:
+The sandbagging prompt barely lands. Of 42 problems the model got right honestly, the
+sandbagging prompt flipped 7 and changed nothing on the other 35. Accuracy goes 43.8% to
+37.5%, a drop of 6.25 points, with McNemar's p at 0.07. At 400 problems the same rate
+gives about 29 successful attacks, still under the gate of 40. So the prompt wants to be blunter, or the model
+bigger.
 
-- **Task**: coding, on two tracks. `cruxeval` is code reasoning — given a function and
-  an input, say what it returns — scored by exact match on the returned literal.
-  `mbpp` (and optionally `humaneval`) is code generation, scored by running the
-  official unit tests. The two tracks differ in how long the answer is and in what
-  "wrong on purpose" means, and they are allowed to disagree.
-- **Attack**: a prompted model answers incorrectly on purpose (sandbagging) — a wrong
-  literal on `cruxeval`, subtly broken code on `mbpp`. An attack counts only when the
-  model answers correctly under the honest prompt and incorrectly under the sandbagging
-  prompt. A sandbagging prompt that changes nothing is not an attack.
-- **Defender**: a linear probe on the residual stream over answer tokens only.
-- **Evasion**: steer the residual stream along the probe's direction at generation
-  time, at increasing strength.
-- **Measurement**: at each evasion strength, record probe AUROC, the accuracy drop
-  the attack still achieves, and the suspicion a text-only monitor assigns.
+The probe also looks like it is reading the prompt rather than the behaviour, which is
+what the step-2 controls exist to catch. Two of the three fail:
 
-The result is a curve. Three shapes matter:
+| control | smoke value | wanted |
+| --- | --- | --- |
+| headline AUROC | 1.00 | high, though this is only 7 attacks |
+| text only | 0.51 | near 0.5, so the answer text is not the signal |
+| prompt, not behaviour | 0.997 | near 0.5 |
+| wrongness, not intent | 0.88 | near 0.5 |
 
-1. Probe AUROC falls and the accuracy drop survives → evasion is cheap, and probes are weak against an adaptive attacker.
-2. Probe AUROC falls but the accuracy drop goes with it → there is a tax, and the probe is doing useful work even though it can be evaded.
-3. Probe AUROC falls and black-box suspicion rises → the probe pushes the attack into another monitor's view, which is the case for defence in depth.
+The prompt control scores sandbagging-prompted answers that came out correct anyway. The
+instruction is in the context and the behaviour is absent, so a probe tracking behaviour
+should sit near chance. At 0.997 it is reading the instruction. Features are pooled over
+answer tokens only, but those tokens still attend to the system prompt, so there is a path
+for this.
 
+Awkwardly, the two failing controls rest on more data than the headline does: 35 and 54
+examples against 7. The AUROC of 1.00 is the least trustworthy number in the table.
 
-## Layout
+Two caveats before treating any of it as settled. Both probe-score controls are scored
+in-sample for the probe, so they bound how much those confounds explain rather than
+measuring it. And this is one seed at 96 problems, which was enough to check the flow and
+is not enough to conclude anything.
 
+`RESEARCH_PLAN.md` already says what a failing wrongness control costs: the label has to
+get harder, comparing successful attacks against honest-incorrect answers, both wrong and
+differing only in intent. That is a better experiment anyway. The later steps are not
+worth running until the preconditions hold.
+
+Right now `01_preconditions.ipynb` runs `cruxeval` only: given a function and an input,
+say what it returns, scored by exact match on the literal. `mbpp`, which is writing a
+whole function scored by running its tests, is deferred. It costs ten times the generation
+time and has to execute model-written code, and the gates can be decided without it.
+Turning it on is one line, and the last section of that notebook says what to expect.
+
+## The notebooks
+
+Run them in order. Each one reads the previous one's files out of `results/` and nothing
+else.
+
+| notebook | what it answers | state |
+| --- | --- | --- |
+| [`01_preconditions.ipynb`](notebooks/01_preconditions.ipynb) | Does sandbagging work, does a probe see it, and is the probe cheating? | smoke run done, `cruxeval` only |
+| [`02_attack_curve.ipynb`](notebooks/02_attack_curve.ipynb) | The monitor, the evasion curve, and whether evasion transfers to an untouched layer. This is the table. | written, blocked on 01 |
+| [`03_mechinterp.ipynb`](notebooks/03_mechinterp.ipynb) | Is the probe direction load-bearing? Where does the policy live? Does any of it survive in-context learning? | written, future work |
+
+Notebooks 02 and 03 refit the probe from 01's saved activations, under the same seeded
+split, so the test half is only ever used once.
+
+## Running it
+
+Nothing is installed as a package. `src/obftax` goes on `sys.path` and is imported in
+place, so editing it takes effect on the next cell run. The first cell of every notebook
+does the setup and clones the repo if it is not already there.
+
+On Colab: open a notebook, pick a GPU, run the cells.
+
+Locally, `uv` handles the dependencies and nothing else:
+
+```bash
+uv sync
+uv run jupyter lab notebooks
 ```
-src/obftax/   shared code: no GPU, nothing generated on import
-notebooks/    one notebook per experiment; this is where the GPU time goes
-results/      what the notebooks write, and all they pass to each other
-papers/       the papers the measurement depends on
-```
 
-Anything used by more than one experiment lives in `src/obftax`, so a notebook contains
-only the experiment it is named after:
+`01_preconditions.ipynb` starts with `SMOKE = True`, which runs the whole notebook on 96
+problems in a couple of minutes under its own `_smoke` tag. The attack-count gate cannot
+pass at that size, so ignore it. The rates and the controls are still readable, which is
+how the problems above were found. Set `SMOKE = False` for the real run, about fifteen
+minutes on an A100.
 
-| module | what is in it |
-| --- | --- |
-| `config.py` | every shared constant, and the honest/sandbag prompt pair per track |
-| `tasks.py` | the dataset loaders, all returning problems in one shape |
-| `scoring.py` | literal and program scoring, the execution sandbox, and its self-test |
-| `model.py` | loading, prompt building, generation, answer-token pooling |
-| `hooks.py` | the four interventions — steer, project, patch, capture — and `attach`, which always removes them |
-| `probes.py` | the label definition, the by-problem split, fitting, probe directions |
-| `analysis.py` | the accuracy-drop statistics, guarded AUROCs, the first-order bound |
-| `storage.py` | result paths, and how each notebook reads the previous one's output |
+Defaults live in `src/obftax/config.py` rather than in the notebooks: layers
+12/16/20/24/28 with layer 20 as the headline, 400 problems, seed 42. Each notebook's
+config cell overrides them. Everything computed is written to `results/` as JSON, CSV and
+`.npz`. No number is typed into source.
 
-
-## Pipeline
-
-There is no "step 0" — the plan's steps are numbered from 1, and the notebooks map onto
-them like this. Run them in order; each reads the previous one's `results/` files and
-nothing else.
-
-| notebook | plan steps | what it answers | writes |
-| --- | --- | --- | --- |
-| [`notebooks/01_preconditions.ipynb`](notebooks/01_preconditions.ipynb) | 1–2 | Does sandbagging work, does a probe see it, and does the probe win for free? | `pre_<tag>_*` |
-| [`notebooks/02_attack_curve.ipynb`](notebooks/02_attack_curve.ipynb) | 3–5 | The monitor, the steering-evasion curve, and whether evasion transfers to an unattacked layer. **This is the table.** | `attack_<tag>_*` |
-| [`notebooks/03_mechinterp.ipynb`](notebooks/03_mechinterp.ipynb) | future work | Is the probe direction load-bearing? Where does the policy live? Does any of it survive in-context learning? | `mech_<tag>_*` |
-
-Notebooks 02 and 03 refit the probe from notebook 01's saved activations using the same
-seeded by-problem split, so the test half is still only used once, for the final table.
-That is what `obftax.probes.fit_from_saved` is for, and why the probe **directions** are
-saved rather than pickled sklearn objects.
-
-Step 6 of the plan is the write-up, and has no notebook.
 
 ## Datasets
 
-| track | dataset | size | what the model emits | scoring |
+| track | dataset | size | the model emits | scoring |
 | --- | --- | --- | --- | --- |
 | `cruxeval` | [`cruxeval-org/cruxeval`](https://huggingface.co/datasets/cruxeval-org/cruxeval) | 800 | one Python literal | exact match on the parsed literal |
-| `mbpp` | [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) (full/test) | 500 | a whole function | run the official asserts |
+| `mbpp` | [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) | 500 | a whole function | run the official asserts |
 | `humaneval` | [`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) | 164 | a whole function | run the official `check()` |
 
-`evalplus/mbppplus` (378) and `evalplus/humanevalplus` (164) are drop-in swaps with
-harder test suites, and are the right move once the headline numbers exist.
+`evalplus/mbppplus` and `evalplus/humanevalplus` are drop-in swaps with harder tests, and
+are the right move once the headline numbers exist.
 
-`mbpp` and `humaneval` **execute model-generated code** in a subprocess under CPU,
-address-space and wall-clock limits. That is adequate on a disposable Colab VM, which is
-where the notebooks are meant to run. Do not run those tracks on a machine you care
-about. `obftax.scoring.check_harness` is an assert and not a print, because a sandbox
-that fails to launch scores every solution wrong and still produces a full,
-plausible-looking table.
+`mbpp` and `humaneval` execute model-generated code in a subprocess under CPU, memory and
+wall-clock limits. That is fine on a disposable Colab VM. Do not run those tracks on a
+machine you care about. Neither is on by default.
 
-Nothing is built until steps 1 and 2 pass, which is what
-`notebooks/01_preconditions.ipynb` is for. If the accuracy drop is small, the attack
-needs a better prompt or a bigger model. If probe AUROC is near chance, there is nothing
-to evade and no tax to measure.
-
-The ordered steps after that, the gate each one has to clear, and what is deliberately
-left out are in [RESEARCH_PLAN.md](RESEARCH_PLAN.md).
+The ordered steps, the gate each one has to clear, and what is deliberately left out are
+in [RESEARCH_PLAN.md](RESEARCH_PLAN.md).
 
 ## References
 
-- Goldowsky-Dill, Chughtai, Heimersheim, Hobbhahn. *Detecting Strategic Deception
-  Using Linear Probes*. ICML 2025. <https://arxiv.org/abs/2502.03407> — the probe
-  method being attacked, and evidence that it works on non-adaptive deception.
+- Goldowsky-Dill, Chughtai, Heimersheim, Hobbhahn. *Detecting Strategic Deception Using
+  Linear Probes*. ICML 2025. <https://arxiv.org/abs/2502.03407>. The probe method being
+  attacked, and evidence it works on non-adaptive deception.
 - Bailey, Serrano, Sheshadri, et al. *Obfuscated Activations Bypass LLM Latent-Space
-  Defenses*. ICLR 2026. <https://arxiv.org/abs/2412.09565> — the result that motivates
-  the question: latent-space monitors can be evaded.
+  Defenses*. ICLR 2026. <https://arxiv.org/abs/2412.09565>. The result that motivates the
+  question: latent-space monitors can be evaded.
 - Gupta, Jenner. *RL-Obfuscation: Can Language Models Learn to Evade Latent-Space
-  Monitors?* 2025. <https://arxiv.org/abs/2506.14261> — the closest existing adaptive
-  attacker, and the closest existing evidence on whether evasion preserves behaviour.
-
+  Monitors?* 2025. <https://arxiv.org/abs/2506.14261>. The closest existing adaptive
+  attacker, and the closest evidence on whether evasion preserves behaviour.

@@ -85,3 +85,20 @@ def fit_from_saved(z, pool, layer, h_correct, attacked, seed=SEED):
     )
     info.update(X=X, y=y, q=q)
     return probe, info
+
+
+def score_subset(probe, X, mask):
+    """Probe scores for the rows `mask` selects, or an empty array when it selects none.
+
+    sklearn raises on a zero-row input, and the control groups in step 2 can legitimately
+    be empty -- "honest but wrong" is empty whenever honest accuracy is 100% on the
+    sample. An empty array flows through `analysis.auroc`, which reports nan.
+    """
+    mask = np.asarray(mask)
+    if mask.dtype == bool:
+        n = int(mask.sum())
+    else:
+        n = len(mask)
+    if n == 0:
+        return np.empty(0)
+    return probe.decision_function(X[mask])

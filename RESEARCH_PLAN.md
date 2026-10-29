@@ -8,11 +8,13 @@ Keep this file short. If a step grows its own design document, the step is too b
 
 ## Where the code is now
 
-The steps below are numbered from 1; there is no step 0. `notebooks/obftax.ipynb` is
-steps 1–2, `notebooks/obftax_attack.ipynb` is steps 3–5, and
-`notebooks/obftax_mechinterp.ipynb` is the Future work section further down.
+The steps below are numbered from 1; there is no step 0. `notebooks/01_preconditions.ipynb`
+is steps 1–2, `notebooks/02_attack_curve.ipynb` is steps 3–5, and
+`notebooks/03_mechinterp.ipynb` is the Future work section further down. Everything the
+notebooks share — loaders, scoring, model loading, the hooks, the probe, the statistics —
+is in `src/obftax`, so each notebook holds only its own experiment.
 
-`obftax.py`, and `notebooks/obftax.ipynb`, answer two yes/no questions:
+`notebooks/01_preconditions.ipynb` answers two yes/no questions:
 
 1. Does the sandbagging prompt produce a real accuracy drop?
 2. Does a linear probe on answer-token activations separate honest answers from
@@ -62,7 +64,7 @@ worse than crashing.
   search, and prompt wording get decided on the train half.
 - Activations used to score a steered generation are collected with steering active.
   The probe has to see what the attack actually produced, not an unsteered replay.
-- Every number in a table comes from a file in `results/` that a script wrote. No
+- Every number in a table comes from a file in `results/` that a notebook wrote. No
   number is typed into source. (The previous version of this repo plotted hardcoded
   literals; that is how this rule got written.)
 
@@ -70,7 +72,7 @@ worse than crashing.
 
 ### 1. Confirm the preconditions on the real model
 
-Run `obftax.py` as configured, on both tracks. Record honest accuracy, sandbagging
+Run `notebooks/01_preconditions.ipynb` as configured, on both tracks. Record honest accuracy, sandbagging
 accuracy, count of successful attacks, probe AUROC per (pooling, layer).
 
 Gate: at least ~40 successful attacks per track, and probe AUROC comfortably above 0.5.
@@ -142,7 +144,7 @@ exact weights it was optimised against is a much weaker attack than one that
 generalises, and a defender who can retrain at a new layer is in a much better
 position. Report both AUROCs in the same table.
 
-Steps 3 to 5 are implemented in `notebooks/obftax_attack.ipynb`, which writes the table
+Steps 3 to 5 are implemented in `notebooks/02_attack_curve.ipynb`, which writes the table
 to `results/attack_<tag>_table.csv`.
 
 ### 6. Write it up
@@ -168,15 +170,15 @@ Each of these was in the previous plan and is cut until the table above exists.
   a second model, bootstrapped confidence intervals, multiple seeds. All of these are
   replication, and belong after there is one result to replicate. Confidence intervals
   come back in for the write-up.
-- ControlArena and Inspect. The pipeline is four scripts over cached files and does not
-  need an eval framework.
+- ControlArena and Inspect. The pipeline is one small package and three notebooks over
+  cached files, and does not need an eval framework.
 
 ## Future work
 
 Three directions, none of them step 7. Each is its own project. They are written down
 here so the measurement above is built in a way that does not block them.
 
-The first three are implemented in `notebooks/obftax_mechinterp.ipynb`: the causal check
+The first three are implemented in `notebooks/03_mechinterp.ipynb`: the causal check
 on the probe direction, the decision-subspace overlap, residual-stream patching by layer,
 and the ICL sweep including the pre-emptive probe.
 
@@ -232,7 +234,7 @@ things to do, in order:
 - **Compare the probe direction to the mechanism.** If the probe direction lies mostly
   inside the span of the directions that decide the next token, the probe is reading the
   decision rather than the intent — and the wrongness control in step 2 will already
-  have hinted at it. `obftax.py` reports that overlap already, as the mean
+  have hinted at it. `obftax.analysis.decision_overlap` reports that overlap, as the mean
   `|cos(w, u)|` over answer positions where `u = W_U[top1] - W_U[top2]`. Note Qwen3.5 is
   a hybrid architecture, mostly gated linear attention rather than softmax attention, so
   head-level patching needs adapting and the linear-attention state is itself somewhere a
@@ -248,8 +250,8 @@ at every answer position its own chosen token has to stay ahead of the runner-up
 is a constraint on `h` along `u = W_U[top1] - W_U[top2]`. If `w` is orthogonal to those
 directions, the two constraints are independent and evasion is first-order free. The more
 `w` aligns with them, the more reducing `w·h` costs attack strength. So `cos(w, u)` over
-answer positions is a first-order predictor of the tax. `obftax.py` already computes and
-saves it, from the top-2 logit ids recorded during the run, so it is testable against the
+answer positions is a first-order predictor of the tax. Notebook 01 computes and saves
+it, from the top-2 logit ids recorded during the run, so it is testable against the
 measured curve without re-running anything.
 
 It is only first order. The model is not linear from the probe layer to the logits, and

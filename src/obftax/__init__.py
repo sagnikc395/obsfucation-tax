@@ -54,6 +54,7 @@ from .probes import (
     fit_probe,
     probe_direction,
     problem_split,
+    score_subset,
 )
 from .scoring import check_harness, extract_code, run_program, score, score_literal
 from .storage import base_path, load_pre, save_summary, zip_results
@@ -69,7 +70,7 @@ __all__ = [
     "device", "generate", "generate_and_pool", "load_model", "pool_one", "text_config",
     "Capture", "Patch", "Project", "Steer", "attach",
     "build_xy", "fit_and_score", "fit_from_saved", "fit_probe", "probe_direction",
-    "problem_split",
+    "problem_split", "score_subset",
     "attack_stats", "auroc", "decision_overlap", "fresh_probe_auroc",
     "random_cos_baseline",
     "base_path", "load_pre", "save_summary", "zip_results",

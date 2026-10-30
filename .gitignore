@@ -21,3 +21,7 @@ analysis/
 results/*
 !results/.gitkeep
 !results/upload/
+
+# Installed by slides/README.md so build_deck.js can run.
+node_modules/
+package-lock.json

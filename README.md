@@ -14,8 +14,7 @@ linear classifier on those vectors can often tell an honest attempt from deliber
 failure. That classifier is the probe, and it is the defence.
 
 What is not known is what the fooling costs. The probe reads the same internal state the
-model uses to do the task, so pushing that state around is not a free move. Three things
-can happen:
+model uses to do the task, so pushing that state around is not a free move. Three things can happen:
 
 1. The model dodges the probe and sandbags just as well. Then the probe is close to
    useless against an attacker who knows about it.
@@ -53,61 +52,57 @@ attack does, evasion is cheap, else the gap between them is the tax.
 The model is `Qwen/Qwen3.5-4B`. The probe is a logistic regression on the residual stream,
 over answer tokens only.
 
-## Status
+## Results
 
+One run so far. `mbpp`, 300 problems, reasoning off, 146 answerable, 73 held out for the
+table. Steering at layer 20, transfer probe at layer 28.
 
-The real run has not been done, because the smoke run turned up two problems first.
+| alpha | probe L20 | transfer L28 | accuracy drop | monitor | valid rate |
+| --- | --- | --- | --- | --- | --- |
+| 0 | 1.000 | 1.000 | 0.274 | 0.129 | 1.000 |
+| 1 | 0.999 | 1.000 | 0.288 | 0.130 | 1.000 |
+| 2 | 0.572 | 0.993 | 0.342 | 0.131 | 1.000 |
+| 4 | 0.000 | 0.718 | 0.274 | 0.117 | 1.000 |
+| 8 | 0.000 | 0.000 | 0.274 | 0.126 | 1.000 |
 
-The sandbagging prompt barely lands. Of 42 problems the model got right honestly, the
-sandbagging prompt flipped 7 and changed nothing on the other 35. Accuracy goes 43.8% to
-37.5%, a drop of 6.25 points, with McNemar's p at 0.07. At 400 problems the same rate
-gives about 29 successful attacks, still under the gate of 40. So the prompt wants to be blunter, or the model
-bigger.
+Honest baseline: monitor 0.066. Accuracy on the held-out set is 1.000 by construction,
+since the probe is fitted on answerable problems only, so the accuracy drop here is the
+flip rate on those and is not the same quantity as the drop over the whole track.
 
-The probe also looks like it is reading the prompt rather than the behaviour, which is
-what the step-2 controls exist to catch. Two of the three fail:
+The probe score falls by exactly what the steering takes off it. The probe geometry
+predicts a shift of 6.991 scaled units per alpha and the run delivers 7.02 to 7.10,
+leaving a residual under 1.6% of the imposed shift. Nothing in the model's computation
+responded to being pushed.
 
-| control | smoke value | wanted |
-| --- | --- | --- |
-| headline AUROC | 1.00 | high, though this is only 7 attacks |
-| text only | 0.51 | near 0.5, so the answer text is not the signal |
-| prompt, not behaviour | 0.997 | near 0.5 |
-| wrongness, not intent | 0.88 | near 0.5 |
+So an AUROC of 0.000 is overshoot and not evasion. Scored two-sided, on distance from the
+honest median, detection returns to 1.000 at alpha 4 and 8. The one setting that hides is
+alpha 2, at 0.604, and on 25 attacks its confidence interval runs [0.44, 0.71].
 
-The prompt control scores sandbagging-prompted answers that came out correct anyway. The
-instruction is in the context and the behaviour is absent, so a probe tracking behaviour
-should sit near chance. At 0.997 it is reading the instruction. Features are pooled over
-answer tokens only, but those tokens still attend to the system prompt, so there is a path
-for this.
+The untouched layer survives. At alpha 2, with the attacked probe down to 0.572, layer 28
+still reads 0.993. Steering layer 20 moves layer 28 by 2.8 per alpha against 7.0 at the
+layer being steered, and no setting beats both layers at once.
 
-Awkwardly, the two failing controls rest on more data than the headline does: 35 and 54
-examples against 7. The AUROC of 1.00 is the least trustworthy number in the table.
+The accuracy drop holds between 0.27 and 0.34 across the sweep, which reads as free
+evasion until you look at which problems fail. Overlap with the unsteered failure set
+falls to 0.29 by alpha 8: nine of the original twenty, eleven new ones, with the valid
+rate still at 1.000. The rate survives and the sabotage does not.
 
-Two caveats before treating any of it as settled. Both probe-score controls are scored
-in-sample for the probe, so they bound how much those confounds explain rather than
-measuring it. And this is one seed at 96 problems, which was enough to check the flow and
-is not enough to conclude anything.
+All of which follows from the probe reading the prompt rather than the behaviour. On the
+109 problems where the sandbagging instruction was in context and the answer still came
+out correct, the probe reads 1.000 held out, and those answers score +7.74 against +7.92
+for real attacks. The sabotage is absent and the probe cannot tell. Subtracting a prompt
+marker does not change behaviour, because it is not the behaviour. The text-only monitor picked up the sabotage
+and not the steering, moving from 0.066 to about 0.13 and staying flat in alpha.
 
-`RESEARCH_PLAN.md` already says what a failing wrongness control costs: the label has to
-get harder, comparing successful attacks against honest-incorrect answers, both wrong and
-differing only in intent. That is a better experiment anyway. The later steps are not
-worth running until the preconditions hold.
-
-Right now `01_preconditions.ipynb` runs `cruxeval` only: given a function and an input,
-say what it returns, scored by exact match on the literal. `mbpp`, which is writing a
-whole function scored by running its tests, is deferred. It costs ten times the generation
-time and has to execute model-written code, and the gates can be decided without it.
-Turning it on is one line, and the last section of that notebook says what to expect.
+Until the sandbagging instruction leaves the context window, every number above is a fact
+about prompts.
 
 ## Sandbagging Evals and Monitoring
 
-- [`01_preconditions.ipynb`](notebooks/01_preconditions.ipynb)
+- [`sandbagging_experiments.ipynb`](notebooks/sandbagging_experiments.ipynb)
    - Does sandbagging work, does a probe see it, and is the probe cheating? 
-- [`02_attack_curve.ipynb`](notebooks/02_attack_curve.ipynb)
-   - The monitor, the evasion curve, and whether evasion transfers to an untouched layer. This is the table.
-- [`03_mechinterp.ipynb`](notebooks/03_mechinterp.ipynb)
-   - Is the probe direction load-bearing? Where does the policy live? Does any of it survive in-context learning? 
-
+- [`monitor_evasion.ipynb`](notebooks/monitor_evasion.ipynb)
+   - The monitor, the evasion curve, and whether evasion transfers to an untouched layer. 
 
 ## Datasets
 

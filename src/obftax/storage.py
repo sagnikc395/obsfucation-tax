@@ -6,7 +6,6 @@ The pipeline is three notebooks that talk to each other only through `results/`:
     pre_<tag>_records.csv        every generation, both prompts
     pre_<tag>_<track>_acts.npz   activations, masks, probe directions
     attack_<tag>_<track>_*       the monitor, the curve, transfer   (notebook 02)
-    mech_<tag>_<track>_*         the mech-interp experiments        (notebook 03)
 
 Nothing downstream recomputes a number that is already in one of these files.
 """
@@ -93,7 +92,7 @@ def _pre_not_found(track, tag, results):
             lines.append("those are <tag>_<track> pairs, so set PRE_TAG and TRACK to match "
                          "one of: " + ", ".join(tags))
     else:
-        lines.append("nothing there at all -- run notebooks/01_preconditions.ipynb first, "
+        lines.append("nothing there at all -- run notebooks/sandbagging_experiments.ipynb first, "
                      "or upload its zip into results/")
     return "\n".join(lines)
 

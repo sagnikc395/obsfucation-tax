@@ -25,7 +25,6 @@ APPLY_THEME=/path/to/pptx/scripts/apply_theme.js node build_deck.js
 
 ```sh
 python scripts/office/validate.py obfuscation-tax.pptx   # from the pptx skill
-python scripts/slide_text.py obfuscation-tax.pptx        # content, notes, ordering
 uv run --with python-pptx python check_geometry.py obfuscation-tax.pptx
 ```
 
@@ -37,15 +36,17 @@ wrong, and it does not catch everything a render would.
 
 ## Structure
 
-Four sections, eighteen slides, following the arc of `ANALYSIS.md`:
+Three sections, five slides. Two of them are the method, since that is where this run's
+result actually lives:
 
-| Section | Slides |
+| Slide | What is on it |
 | --- | --- |
-| Background | the question, the three papers, the three outcomes |
-| Design and preconditions | how the measurement works, what the gates said, the controls |
-| The sweep and the turn | the table, the arithmetic behind it, and four findings |
-| What it means | the verdict, what holds up, what broke, the eleven fixes, where to go next |
+| The question | Where it comes from, the tax defined, and the three outcomes written down in advance |
+| Method, end to end | The six steps of the pipeline, the probe and steering specs, and the two gates |
+| Preconditions and controls | What the gates returned, the five controls, the group means, and the prompt confound |
+| The sweep | The table, the residual arithmetic behind the probe column, and the two-sided correction |
+| What the run still supports | The defence result, the behavioural signal, the flip-set churn, and what a re-run needs |
 
-Two layouts carry the deck: `CONTENT` for the light slides and `TITLE_DARK` /
-`STATEMENT_DARK` for the cover and the verdict. Cards, badges and stat callouts are
+Two layouts carry the deck: `CONTENT` for the three light slides and `TITLE_DARK` /
+`STATEMENT_DARK` for the opener and the close. Cards, badges and stat callouts are
 composed per slide on top of those.

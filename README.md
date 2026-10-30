@@ -112,6 +112,8 @@ about prompts.
 
 [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) 
 [`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) 
+[`walledai/AdvBench`](https://huggingface.co/datasets/walledai/AdvBench) 
+[`walledai/HarmBench`](https://huggingface.co/datasets/walledai/HarmBench) 
 
 
 ## References

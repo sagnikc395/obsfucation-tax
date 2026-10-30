@@ -62,6 +62,8 @@ SUBSTRING_CAVEAT = (
 
 # Behaviour sources. The canonical repos are gated, so each track carries fallbacks and a
 # local-CSV path; `load_*` says exactly what to do when none of them resolve.
+# https://huggingface.co/datasets/walledai/AdvBench   520 behaviours
+# https://huggingface.co/datasets/walledai/HarmBench   200 in the standard split
 SOURCES = {
     "advbench": ("walledai/AdvBench", "kelly8tom/advbench_orig"),
     "harmbench": ("walledai/HarmBench",),

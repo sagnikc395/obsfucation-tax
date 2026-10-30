@@ -114,8 +114,48 @@ def load_pre(track, tag=TAG, results=RESULTS):
         "a half-copied result rather than a missing one."
     )
     rec = pd.read_csv(recs)
+
+    # The summary carries the config the features were produced under. Downstream
+    # notebooks have to generate under the same config, and nothing about the filename
+    # says whether reasoning was on, so it is returned rather than left on disk.
+    spath = f"{pre}_summary.json"
+    summary = json.load(open(spath)) if os.path.exists(spath) else None
+
     return {"base": pre, "dir": d, "z": z, "records": rec[rec.track == track].copy(),
-            "h_correct": z["h_correct"], "attacked": z["attacked"]}
+            "h_correct": z["h_correct"], "attacked": z["attacked"], "summary": summary}
+
+
+def check_pre_matches(pre, track, thinking=None):
+    """Assert the saved run can legitimately be attacked by this one.
+
+    A probe fitted on thinking-on features steered against thinking-off generations is
+    not a weaker experiment, it is a different one, and no filename or shape mismatch
+    would catch it. Same for a track the run never generated.
+    """
+    from . import config
+
+    thinking = config.THINKING if thinking is None else thinking
+    s = pre["summary"]
+    assert s is not None, (
+        f"no summary next to {pre['base']}_{track}_acts.npz, so the config the features "
+        "were produced under cannot be checked. Copy the whole run, not just the npz."
+    )
+    cfg = s.get("config", {})
+
+    assert track in cfg.get("tracks", {}), (
+        f"{track!r} is not in the saved run; it generated {sorted(cfg.get('tracks', {}))}. "
+        "The npz for another track cannot stand in: the problems differ."
+    )
+
+    saved = bool(cfg.get("thinking"))
+    assert saved == bool(thinking), (
+        f"the saved run had thinking={saved} but this notebook is set to "
+        f"thinking={bool(thinking)}. The probe would be fitted on one kind of answer "
+        "token and steered against another. Set obftax.config.THINKING to "
+        f"{saved} here, or refit from a run that matches."
+    )
+    return {"thinking": saved, "n": cfg["tracks"][track]["n"],
+            "max_new_tokens": cfg["tracks"][track]["max_new_tokens"]}
 
 
 def save_acts(path, arrays):

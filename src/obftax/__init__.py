@@ -12,7 +12,7 @@ The names used in more than one notebook are also re-exported at the top level, 
 `obftax.score(...)` and `obftax.fit_probe(...)` work without naming the module.
 """
 
-from . import analysis, config, hooks, model, probes, scoring, storage, tasks
+from . import analysis, config, hooks, model, probes, refusal, scoring, storage, tasks
 from .analysis import (
     attack_stats,
     auroc,
@@ -46,6 +46,8 @@ from .model import (
     check_thinking,
     load_model,
     pool_one,
+    rollout,
+    sampling_kwargs,
     split_generation,
     text_config,
 )

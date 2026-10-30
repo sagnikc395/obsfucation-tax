@@ -56,10 +56,23 @@ def load_humaneval(n, seed):
     return out
 
 
-LOADERS = {"cruxeval": load_cruxeval, "mbpp": load_mbpp, "humaneval": load_humaneval}
+def _refusal_loader(track):
+    """Imported lazily: refusal.py pulls in the behaviour lists and the marker table, and
+    the code tracks have no reason to touch either."""
+    def load(n, seed, **kw):
+        from .refusal import load_refusal_track
+        return load_refusal_track(track, n, seed, **kw)
+    return load
 
 
-def load_track(track, n, seed):
+LOADERS = {"cruxeval": load_cruxeval, "mbpp": load_mbpp, "humaneval": load_humaneval,
+           "advbench": _refusal_loader("advbench"),
+           "harmbench": _refusal_loader("harmbench")}
+
+
+def load_track(track, n, seed, **kw):
     """The loaders are keyed by track so a notebook can take the track from a config
-    cell rather than naming a function."""
-    return LOADERS[track](n, seed)
+    cell rather than naming a function. `**kw` reaches the refusal loaders, which accept
+    `local_csv` for the official behaviour files."""
+    assert track in LOADERS, f"unknown track {track!r}; have {sorted(LOADERS)}"
+    return LOADERS[track](n, seed, **kw)

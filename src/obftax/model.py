@@ -191,12 +191,33 @@ def trim_answer(gen_ids, n_prompt, tok):
     return new
 
 
+def sampling_kwargs(temperature=None, top_p=None):
+    """Greedy unless a temperature is given, in which case sample.
+
+    The code tracks are greedy, so one prompt gives one answer and the label has to come
+    from a second prompt. The refusal tracks need both labels off a single prompt, which
+    only happens under sampling. Keeping the switch here means a track cannot half-change
+    it: `temperature=None` is exactly the old greedy path.
+    """
+    if temperature is None:
+        return {"do_sample": False}
+    assert temperature > 0, "temperature=0 is greedy; pass None for that"
+    kw = {"do_sample": True, "temperature": float(temperature)}
+    if top_p is not None:
+        kw["top_p"] = float(top_p)
+    return kw
+
+
 @torch.no_grad()
-def generate(model, tok, prompt, max_new_tokens, hooks=(), layers_mod=None):
-    """Greedy generation, optionally under forward hooks.
+def generate(model, tok, prompt, max_new_tokens, hooks=(), layers_mod=None,
+             temperature=None, top_p=None, seed=None):
+    """Generation, optionally under forward hooks. Greedy unless `temperature` is set.
 
     `hooks` is passed straight to obftax.hooks.attach, with `layers_mod` when the
     targets are layer indices rather than modules.
+
+    `seed` seeds this call only, so a sampled rollout can be reproduced without making
+    the whole run depend on global torch state.
 
     Returns (text, seq, n_prompt, n_answer). `seq` is prompt+answer as one batch of ids:
     re-tokenizing prompt+answer can move the boundary by a token and leak prompt
@@ -206,8 +227,11 @@ def generate(model, tok, prompt, max_new_tokens, hooks=(), layers_mod=None):
 
     enc = tok(prompt, return_tensors="pt").to(model.device)
     n_prompt = enc["input_ids"].shape[1]
+    if seed is not None:
+        torch.manual_seed(seed)
     with attach(hooks, layers_mod):
-        gen = model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False,
+        gen = model.generate(**enc, max_new_tokens=max_new_tokens,
+                             **sampling_kwargs(temperature, top_p),
                              pad_token_id=tok.eos_token_id)[0]
     new = trim_answer(gen, n_prompt, tok)
     seq = torch.cat([gen[:n_prompt], torch.tensor(new, device=gen.device)]).unsqueeze(0)
@@ -269,3 +293,56 @@ def generate_and_pool(model, tok, system, user, max_new_tokens, n_layers,
     del out, hs
     return part["text"], pooled, top2, {k: part[k] for k in
                                         ("n_answer", "n_trace", "closed", "trace_text")}
+
+
+@torch.no_grad()
+def rollout(model, tok, prompt, max_new_tokens, layers, poolings=("mean",),
+            make_hooks=None, layers_mod=None, temperature=None, top_p=None, seed=None):
+    """One generation plus answer-token features from a forward pass under the same hooks.
+
+    This is `generate_and_pool` with two differences the refusal tracks need. It takes a
+    pre-rendered `prompt`, so the k samples of one behaviour are provably the same string.
+    And it takes `make_hooks`, a callable returning a FRESH list of (layer, hook) pairs,
+    because the features must come from a hooked forward pass: scoring a steered rollout
+    with unsteered activations measures nothing, and a hook object carries per-call state
+    that cannot be reused across the two passes.
+
+    A Capture is appended per layer after whatever `make_hooks` returns. Hooks fire in the
+    order listed, so the Capture on a steered layer sees the steered output.
+
+    Returns (text, pooled, info). `pooled[pooling][layer]` is over answer tokens only.
+    """
+    from .hooks import Capture, attach
+
+    assert layers_mod is not None, (
+        "rollout needs layers_mod: its feature Captures are attached by layer index, so "
+        "pass obftax.decoder_layers(model) even when make_hooks is None"
+    )
+    enc = tok(prompt, return_tensors="pt").to(model.device)
+    n_prompt = enc["input_ids"].shape[1]
+    if seed is not None:
+        torch.manual_seed(seed)
+    with attach(list(make_hooks() if make_hooks else []), layers_mod):
+        gen = model.generate(**enc, max_new_tokens=max_new_tokens,
+                             **sampling_kwargs(temperature, top_p),
+                             pad_token_id=tok.eos_token_id)[0]
+
+    new = trim_answer(gen, n_prompt, tok)
+    part = split_generation(new, tok)
+    seq = torch.cat([gen[:n_prompt], torch.tensor(new, device=gen.device)]).unsqueeze(0)
+    a0 = n_prompt + (len(new) - len(part["answer_ids"]))
+
+    caps = {L: Capture() for L in layers}
+    hs = list(make_hooks() if make_hooks else []) + [(L, c) for L, c in caps.items()]
+    with attach(hs, layers_mod):
+        model(seq)
+
+    pooled = {p: {} for p in poolings}
+    for L in layers:
+        assert caps[L].captured is not None, f"nothing captured at layer {L}"
+        a = caps[L].captured[0, a0:].float()
+        for p in poolings:
+            pooled[p][L] = pool_one(a, p).cpu().numpy()
+
+    return part["text"], pooled, {k: part[k] for k in
+                                  ("n_answer", "n_trace", "closed", "trace_text")}

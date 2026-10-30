@@ -82,6 +82,12 @@ over answer tokens only.
 
 ## Results
 
+[`RESULTS.md`](RESULTS.md) carries the corrected numbers: the headline below is a prompt
+artefact, the detection column is arithmetic, and the run's real findings are a 0.859
+within-prompt probe and a defender's number of 0.993. Regenerate it with
+`python scripts/reanalyze.py`, which needs no GPU. The tables below are what the run
+reported at the time.
+
 One run so far. `mbpp`, 300 problems, reasoning off, 146 answerable, 73 held out for the
 table. Steering at layer 20, transfer probe at layer 28.
 
@@ -145,17 +151,11 @@ run next.
    - Does sandbagging work, does a probe see it, and is the probe cheating? 
 - [`monitor_evasion.ipynb`](notebooks/monitor_evasion.ipynb)
    - The monitor, the evasion curve, and whether evasion transfers to an untouched layer. 
-- [`obfuscation_tax_refusal.ipynb`](notebooks/obfuscation_tax_refusal.ipynb)
-   - The same measurement on AdvBench and HarmBench, where the label is the model's own
-     behaviour rather than which prompt it was given, so the prompt control cannot be
-     failed. Generates its own data; raw completions are not saved by default.
 
 ## Datasets
 
-[`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) 
-[`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) 
-[`walledai/AdvBench`](https://huggingface.co/datasets/walledai/AdvBench) 
-[`walledai/HarmBench`](https://huggingface.co/datasets/walledai/HarmBench) 
+- [`google-research-datasets/mbpp`](https://huggingface.co/datasets/google-research-datasets/mbpp) 
+- [`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) 
 
 ## References
 

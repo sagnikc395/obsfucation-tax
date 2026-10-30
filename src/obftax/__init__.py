@@ -12,13 +12,26 @@ The names used in more than one notebook are also re-exported at the top level, 
 `obftax.score(...)` and `obftax.fit_probe(...)` work without naming the module.
 """
 
-from . import analysis, config, hooks, model, probes, refusal, scoring, storage, tasks
+from . import (analysis, config, hooks, metrics, model, probes, refusal, scoring,
+               storage, tasks)
 from .analysis import (
     attack_stats,
     auroc,
     decision_overlap,
     fresh_probe_auroc,
     random_cos_baseline,
+)
+from .metrics import (
+    auroc_ci,
+    defender_number,
+    flip_set_overlap,
+    informative_window,
+    length_auroc,
+    residual_table,
+    shift_per_alpha,
+    tpr_at_fpr,
+    two_sided_auroc_ci,
+    within_prompt_grid,
 )
 from .config import (
     LAYERS,
@@ -73,7 +86,8 @@ from .storage import base_path, load_pre, save_summary, zip_results
 from .tasks import LOADERS, load_track
 
 __all__ = [
-    "analysis", "config", "hooks", "model", "probes", "scoring", "storage", "tasks",
+    "analysis", "config", "hooks", "metrics", "model", "probes", "scoring", "storage",
+    "tasks",
     "LAYERS", "MAIN_LAYER", "MAIN_POOL", "MIN_ATTACKS", "MIN_AUROC", "MODEL",
     "POOLINGS", "PROMPTS", "RESULTS", "SEED", "TAG", "TRACK_CFG",
     "LOADERS", "load_track",
@@ -87,5 +101,8 @@ __all__ = [
     "problem_split", "score_subset",
     "attack_stats", "auroc", "decision_overlap", "fresh_probe_auroc",
     "random_cos_baseline",
+    "auroc_ci", "defender_number", "flip_set_overlap", "informative_window",
+    "length_auroc", "residual_table", "shift_per_alpha", "tpr_at_fpr",
+    "two_sided_auroc_ci", "within_prompt_grid",
     "base_path", "load_pre", "save_summary", "zip_results",
 ]

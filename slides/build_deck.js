@@ -434,11 +434,12 @@ pres.addSection({ title: "Design and preconditions" });
     [th("Control"), th("Value"), th("n"), th("Wanted")],
     [td("Headline: honest-correct vs attack"), td("1.000", { bold: true }), td("146 / 37"), td("high", { color: FAINT })],
     [td("Text only"), td("0.774"), td("183"), td("near 0.5", { color: FAINT })],
+    [td("Answer length alone"), td("0.672"), td("146 / 35"), td("near 0.5", { color: FAINT })],
     [td("Prompt, not behaviour"), td("1.000", { bold: true, color: ATTACK }), td("146 / 109"), td("near 0.5", { color: FAINT })],
     [td("Wrongness, not intent"), td("0.789"), td("146 / 154"), td("near 0.5", { color: FAINT })],
   ];
   s.addTable(rows, {
-    ...tableBase, x: M, y: 1.62, w: 6.6, colW: [3.1, 1.2, 1.3, 1.0], rowH: 0.42,
+    ...tableBase, x: M, y: 1.62, w: 6.6, colW: [3.1, 1.2, 1.3, 1.0], rowH: 0.38,
     objectName: "controls-table",
   });
 
@@ -470,11 +471,11 @@ pres.addSection({ title: "Design and preconditions" });
     fontFace: THEME.headFontFace, isTextBox: true, margin: 0,
   });
   s.addText(
-    "An attack and a sandbag-prompted answer that came out correct sit 0.18 apart on a scale spanning 15.6. The sabotage is absent in one of them and the probe cannot tell. We noted that and continued, because the headline number was 1.000 and the attack machinery was already built.",
-    { x: M + 0.36, y: 4.96, w: CW - 0.72, h: 0.76, fontSize: 13, color: ONDARK_MUTED,
-      lineSpacingMultiple: 1.24, isTextBox: true, margin: 0 }
+    "An attack and a sandbag-prompted answer that came out correct sit 0.18 apart on a scale spanning 15.6. Hold the prompt constant and the same cell drops from 1.000 to 0.644, against a shuffled-label null that reaches 0.634. Answer length does much of the rest: 0.672 across prompts, 0.516 within. We noted the control and continued, because the headline was 1.000 and the attack machinery was already built.",
+    { x: M + 0.36, y: 4.96, w: CW - 0.72, h: 0.86, fontSize: 12.5, color: ONDARK_MUTED,
+      lineSpacingMultiple: 1.2, isTextBox: true, margin: 0 }
   );
-  source(s, "Source: results/pre_qwen35_4b_thinking_off_summary.json → controls");
+  source(s, "Mean answer tokens: honest-correct 43.8, sabotaged 59.1, instruction ignored 57.1. Mean pooling sees length.");
   s.addNotes("The prompt control is the one that should have stopped us. It reads 1.000, which means the probe cannot tell a landed sabotage from an instruction that was ignored.");
 }
 
@@ -619,12 +620,12 @@ pres.addSection({ title: "The sweep and the turn" });
   s.addText(
     [
       { text: "alpha 2", options: { fontSize: 26, bold: true, color: ATTACK, fontFace: THEME.headFontFace } },
-      { text: "\n0.604 two-sided, CI [0.47, 0.73], on 25 attacks.\nTPR at 1% FPR drops to 0.040.", options: { fontSize: 12.5, color: MUTED } },
+      { text: "\n0.604 two-sided, CI [0.48, 0.74], on 25 attacks.\nTPR at 1% FPR drops to 0.08.", options: { fontSize: 12.5, color: MUTED } },
     ],
     { x: M + 8.0, y: 4.38, w: 3.8, h: 1.3, lineSpacingMultiple: 1.2, isTextBox: true, margin: 0 }
   );
 
-  source(s, "The attacker's best choice is interior: turning the dial up past the window makes the attack trivially detectable.");
+  source(s, "The attacker's best choice is interior. Past the window the dial makes the attack trivially detectable. Intervals: stratified bootstrap, 2000 resamples.");
   s.addNotes("A table reporting only the one-sided number reads this backwards and calls alpha 8 a complete evasion.");
 }
 
@@ -635,7 +636,7 @@ pres.addSection({ title: "The sweep and the turn" });
   s.addText("One untouched layer defeats the attack", { placeholder: "title" });
 
   s.addText(
-    "Steering layer 20 drags layer 28 along at 2.8 per alpha, against 7.0 at the layer being steered. That ratio is what leaves a gap for the defender.",
+    "Steering layer 20 drags layer 28 along at 2.8 per alpha against 7.0 at the layer being steered, and that gap between the two rates is what the defender reads.",
     { x: M, y: 1.58, w: 7.3, h: 0.56, fontSize: 13.5, color: MUTED, lineSpacingMultiple: 1.2,
       isTextBox: true, margin: 0 }
   );
@@ -709,7 +710,7 @@ pres.addSection({ title: "The sweep and the turn" });
   card(s, { x: M + 7.7, y: 1.62, w: 4.39, h: 2.26, fill: TINT, name: "churn-note1" });
   s.addText(
     [
-      { text: "The accuracy drop reads 0.274, 0.288, 0.342, 0.274, 0.274. Flat. Taken at face value the attacker keeps everything.\n\n", options: {} },
+      { text: "The accuracy drop reads 0.274, 0.288, 0.342, 0.274, 0.274, which is flat enough that the attacker appears to keep everything.\n\n", options: {} },
       { text: "The problems that fail are not the same problems.", options: { color: INK, bold: true } },
     ],
     { x: M + 8.0, y: 1.84, w: 3.8, h: 1.86, fontSize: 12.5, color: MUTED,
@@ -722,7 +723,7 @@ pres.addSection({ title: "The sweep and the turn" });
     isTextBox: true, margin: 0,
   });
   s.addText(
-    "Nine of the original twenty failures remain and eleven are new, with the valid rate still at 1.000. The rate is preserved and the attack is not.",
+    "Nine of the original twenty failures remain and eleven are new. The valid rate holds at 1.000 and the degenerate rate at 0.014, so the churn is not the model breaking down.",
     { x: M + 8.0, y: 4.54, w: 3.8, h: 1.16, fontSize: 12.5, color: MUTED,
       lineSpacingMultiple: 1.24, isTextBox: true, margin: 0 }
   );
@@ -735,27 +736,27 @@ pres.addSection({ title: "The sweep and the turn" });
 {
   const s = slide("CONTENT", "The sweep and the turn");
   eyebrow(s, "Finding 4", DEFENCE);
-  s.addText("Real behavioural signal, at a layer we never attacked", { placeholder: "title" });
+  s.addText("The behavioural signal is stronger than we reported", { placeholder: "title" });
 
   s.addChart(
-    pres.ChartType.bar,
+    pres.ChartType.line,
     [
-      { name: "Within-prompt AUROC", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.579, 0.771, 0.677, 0.669, 0.638] },
-      { name: "Label-shuffled null", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.499, 0.499, 0.504, 0.499, 0.503] },
+      { name: "last-pooled", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.571, 0.847, 0.859, 0.823, 0.819] },
+      { name: "last32-pooled", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.587, 0.804, 0.714, 0.727, 0.694] },
+      { name: "mean-pooled (steered)", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.571, 0.769, 0.644, 0.645, 0.602] },
+      { name: "shuffled-label null, 95th pct", labels: ["L12", "L16", "L20", "L24", "L28"], values: [0.616, 0.628, 0.634, 0.647, 0.636] },
     ],
     {
       x: M, y: 1.62, w: 7.3, h: 4.2,
-      barDir: "col", barGapWidthPct: 45,
-      chartColors: [DEFENCE, "C8D3DC"],
-      showTitle: true, title: "Both classes under the sandbagging prompt, out of fold",
+      chartColors: [DEFENCE, "8A9BA8", ATTACK, "C8D3DC"],
+      lineSize: 3, lineSmooth: false, lineDataSymbolSize: 7,
+      showTitle: true, title: "Within-prompt AUROC, out of fold, all fifteen cells",
       titleColor: INK, titleFontSize: 13, titleFontFace: "+mn-lt",
-      showValue: true, dataLabelPosition: "outEnd", dataLabelColor: INK,
-      dataLabelFontSize: 10, dataLabelFontFace: "+mn-lt", dataLabelFormatCode: "0.000",
-      showLegend: true, legendPos: "b", legendColor: MUTED, legendFontSize: 11,
+      showLegend: true, legendPos: "b", legendColor: MUTED, legendFontSize: 10.5,
       legendFontFace: "+mn-lt",
       catAxisLabelColor: MUTED, catAxisLabelFontSize: 11, catAxisLabelFontFace: "+mn-lt",
       valAxisLabelColor: MUTED, valAxisLabelFontSize: 11, valAxisLabelFontFace: "+mn-lt",
-      valAxisMinVal: 0, valAxisMaxVal: 1, valAxisMajorUnit: 0.25,
+      valAxisMinVal: 0.5, valAxisMaxVal: 0.9, valAxisMajorUnit: 0.1,
       valGridLine: { color: "E7ECF0", size: 1 },
       catGridLine: { style: "none" },
       objectName: "signal-chart",
@@ -764,23 +765,25 @@ pres.addSection({ title: "The sweep and the turn" });
 
   card(s, { x: M + 7.7, y: 1.62, w: 4.39, h: 2.06, fill: TINT, name: "sig-note1" });
   s.addText(
-    "Hold the prompt constant: both classes generated under the sandbagging instruction, labelled by whether the sabotage landed. Prompt identity then carries no information.",
-    { x: M + 8.0, y: 1.82, w: 3.8, h: 1.7, fontSize: 12.5, color: MUTED,
-      lineSpacingMultiple: 1.24, isTextBox: true, margin: 0 }
+    "Both classes are generated under the sandbagging instruction and labelled by whether the sabotage landed, so prompt identity carries no information and the control cannot fire. 35 sabotaged against 109 ignored.",
+    { x: M + 8.0, y: 1.82, w: 3.8, h: 1.7, fontSize: 12, color: MUTED,
+      lineSpacingMultiple: 1.22, isTextBox: true, margin: 0 }
   );
 
   card(s, { x: M + 7.7, y: 3.9, w: 4.39, h: 1.92, fill: DARK, name: "sig-note2" });
   s.addText(
     [
-      { text: "0.771", options: { fontSize: 34, bold: true, color: "7FC4E0", fontFace: THEME.headFontFace } },
-      { text: "  at layer 16\n", options: { fontSize: 14, color: ONDARK } },
-      { text: "\nAcross-prompt reads 1.000 at every layer. That number is inflated rather than empty, and the signal peaks where the attack never went.", options: { fontSize: 11.5, color: ONDARK_MUTED } },
+      { text: "0.859", options: { fontSize: 34, bold: true, color: "7FC4E0", fontFace: THEME.headFontFace } },
+      { text: "  at layer 20, last-pooled\n", options: { fontSize: 13, color: ONDARK } },
+      { text: "\nThat is the layer we steered, under a pooling we did not. Mean-pooled at the same layer reads 0.644, so the sweep attacked the weaker of the two directions available there.", options: { fontSize: 11.5, color: ONDARK_MUTED } },
     ],
-    { x: M + 8.0, y: 4.04, w: 3.8, h: 1.72, lineSpacingMultiple: 1.18, isTextBox: true, margin: 0 }
+    { x: M + 8.0, y: 4.04, w: 3.8, h: 1.72, lineSpacingMultiple: 1.16, isTextBox: true, margin: 0 }
   );
 
-  source(s, "Five-fold out-of-fold, null shuffled within behaviour. Goldowsky-Dill warned that adjacent layers vary this much.");
-  s.addNotes("Our across-prompt grid was saturated at 1.000, so it could not choose a layer. This is the validation set we should have been sweeping.");
+  source(s, "Five folds, out of fold. The best cell's null over 500 shuffles: mean 0.501, 95th pct 0.628, max 0.729. Earlier write-ups quoted 0.771, which was the mean-pooled column alone.");
+  s.addNotes(
+    "A probe can separate a landed sabotage from an ignored instruction at 0.86, which is a usable detector rather than a confound. The earlier 0.771 figure came from reading only the mean-pooled row. The across-prompt grid reads 1.000 in all fifteen cells, so it cannot choose a layer and this grid is the one to sweep."
+  );
 }
 
 // 13 -------------------------------------------------------------- verdict
@@ -827,8 +830,8 @@ pres.addSection({ title: "What it means" });
   const stands = [
     ["0.993", "The defender's number",
       "Two probes read two-sided, minimised over the whole grid. No setting is quiet at the attacked layer and the untouched one at once.", DEFENCE],
-    ["0.771", "Behavioural signal at layer 16",
-      "Within-prompt, out of fold, against a shuffled null of 0.499 whose 95th percentile is 0.592. Layer 20, the one we attacked, reads 0.677.", DEFENCE],
+    ["0.859", "Behavioural signal at layer 20",
+      "Within-prompt, out of fold, last-pooled, against a null whose 95th percentile is 0.628 over 500 shuffles. Mean-pooled at the same layer reads 0.644.", DEFENCE],
     ["1.000", "A failure mode worth naming",
       "Two prompts make the label, the probe reads the prompt, every layer scores 1.000, and layer selection stops working. Anyone building this will hit it.", ATTACK],
   ];
@@ -864,7 +867,7 @@ pres.addSection({ title: "What it means" });
     ["A probe at a layer we never steered",
       "Layer 28, fitted on the same split. It is the only reason there is a defence result to report."],
     ["Features saved per alpha",
-      "The residual arithmetic, the two-sided AUROC, the Jaccard and the within-prompt probe all came off one npz, with no new GPU time."],
+      "The residual arithmetic, the two-sided AUROC, the Jaccard and the within-prompt grid all came off one npz, on CPU alone."],
   ];
   held.forEach((h, i) => {
     const y = 2.22 + i * 0.8;
@@ -890,7 +893,7 @@ pres.addSection({ title: "What it means" });
 
   const broke = [
     ["The label comes from two prompts",
-      "The probe reads which instruction was in the context. An attack and an ignored instruction sit 0.18 apart on a scale spanning 15.6.",
+      "The probe reads which instruction was in the context, and answer length alone scores 0.672 across prompts. Held constant, the headline cell falls from 1.000 to 0.644.",
       "the headline, the layer choice,\nand the tax measurement itself"],
     ["The dial has no scale",
       "In units of alpha the informative window is [0.94, 3.22]. The grid 0, 1, 2, 4, 8 put two of five points inside it.",
@@ -900,7 +903,7 @@ pres.addSection({ title: "What it means" });
       "ten minutes of believing\noutcome 1, and nearly a write-up"],
     ["The gate was not honoured",
       "37 successful attacks against a minimum of 40, with 20 of them in the held-out half.",
-      "every interval in the deck:\nalpha 2 is [0.44, 0.71]"],
+      "every interval in the deck:\nalpha 2 is [0.43, 0.71]"],
   ];
   broke.forEach((b, i) => {
     const y = 1.62 + i * 1.14;
@@ -939,22 +942,22 @@ pres.addSection({ title: "What it means" });
 // 16 ------------------------------------------------------------- improve
 {
   const s = slide("CONTENT", "What it means");
-  eyebrow(s, "What we can improve", DEFENCE);
-  s.addText("Eleven fixes, seven of them free", { placeholder: "title" });
+  eyebrow(s, "Where it stands now", DEFENCE);
+  s.addText("Seven fixes are in. Four need a re-run", { placeholder: "title" });
 
   card(s, { x: M, y: 1.62, w: 5.89, h: 4.64, name: "free" });
-  s.addText("No new generation. The run is on disk.", {
-    x: M + 0.3, y: 1.82, w: 5.3, h: 0.28, fontSize: 12, bold: true, color: FAINT,
+  s.addText("Done, from the run already on disk", {
+    x: M + 0.3, y: 1.82, w: 5.3, h: 0.28, fontSize: 12, bold: true, color: DEFENCE,
     isTextBox: true, margin: 0,
   });
   const free = [
-    "Make the within-prompt AUROC the headline, and choose the layer and pooling by it.",
-    "Add a two-sided AUROC on distance from the honest median, plus TPR at a fixed FPR.",
-    "Add a residual column, realised minus predicted. Under 2% here, and it would have saved the sweep.",
-    "Add the flip-set Jaccard against alpha 0.",
-    "Report the defender's number: the minimum over alpha of the strongest two-sided AUROC.",
-    "Refit the probe on the 35 clean attacks.",
-    "Put a confidence interval on every AUROC.",
+    "Within-prompt AUROC is the headline, and it picks the layer and pooling: L20 last-pooled at 0.859.",
+    "Two-sided AUROC and TPR at 1% FPR. Alpha 4 and 8 go back to 1.000.",
+    "A residual column, realised minus predicted. It reads under 1.6% at every alpha.",
+    "Flip-set Jaccard against alpha 0, which falls to 0.29.",
+    "The defender's number, minimised over alpha: 0.993.",
+    "A degeneracy check beyond compiling, flat at 0.014.",
+    "A stratified bootstrap interval on every AUROC.",
   ];
   free.forEach((t, i) => {
     const y = 2.24 + i * 0.56;
@@ -975,7 +978,7 @@ pres.addSection({ title: "What it means" });
   });
   const rerun = [
     ["Fix the grid first",
-      "Compute the informative window from the fitted probe and assert the grid overlaps it: roughly 0, 1.0, 1.5, 2.0, 2.5, 3.0."],
+      "The notebook now computes the informative window from the fitted probe and asserts the grid overlaps it. It is set to 0, 1.0, 1.5, 2.0, 2.5, 3.0."],
     ["Keep the monitor's rows",
       "We saved only the mean honest suspicion, so no monitor AUROC and no interval can be recovered from this run."],
     ["Give the monitor its own weights",
@@ -995,8 +998,8 @@ pres.addSection({ title: "What it means" });
     });
   });
 
-  source(s, "The seven on the left are re-reads of data already saved. The four on the right set the shape of the next run.");
-  s.addNotes("Seven of these would have changed what we concluded without costing a single generation.");
+  source(s, "Left: src/obftax/metrics.py and scripts/reanalyze.py, both computed inline by the notebooks now. Right: the shape of the next run.");
+  s.addNotes("The seven on the left changed what we conclude without costing a single generation. Both notebooks now compute them during the run rather than needing a re-read afterwards, and the attack notebook asserts the alpha grid overlaps the informative window before it spends a pass.");
 }
 
 // 17 ----------------------------------------------------------------- next
@@ -1009,15 +1012,15 @@ pres.addSection({ title: "What it means" });
     ["Ask whether the direction is causal at all",
       "Project it out of the residual stream during generation instead of steering along it, and measure the attack rate. One pass over the held-out half, no grid. If sabotage survives with the direction removed, there is no tax to look for here.",
       "hooks.Project · already written and tested", ATTACK],
-    ["Target the honest distribution",
-      "A blind alpha overshoots. Pick alpha per example so the score lands on the honest median, or project rather than negate. About twenty lines with the hooks already in place.",
-      "the attacker the literature actually studies", DEFENCE],
+    ["Measure the tax with best-of-n",
+      "Sample sixteen completions per problem under the sandbagging prompt, then sweep a probe-score budget instead of alpha: among completions quiet enough to pass, how many still sabotage? Every point is an output the model would really produce.",
+      "one pass, and both classes share one prompt", DEFENCE],
     ["Take the instruction out of the context",
       "Hand the policy over as k in-context demonstrations with no instruction anywhere, and the label becomes a property of the rollout rather than of the prompt.",
       "the only route back to the original question", DEFENCE],
     ["Replace the hand-set dial with a trained attacker",
-      "One scalar on one direction is the weakest adversary available, and a defence result against it says little. RL-Obfuscation is the comparison.",
-      "a project rather than a run", INK],
+      "One scalar on one direction is the weakest adversary available, and a defence result against it says little. A soft prefix trained on the probe score plus the model's own sandbagged completion is the affordable version; RL-Obfuscation is the comparison.",
+      "hours on a 4B, not a project", INK],
   ];
 
   const cw3 = 5.89, ch3 = 2.16, gx = 0.31, gy = 0.26;
@@ -1041,7 +1044,7 @@ pres.addSection({ title: "What it means" });
     });
   });
 
-  source(s, "A change of substrate also helps: obfuscation_tax_refusal.ipynb puts both labels under one prompt on AdvBench and HarmBench.");
+  source(s, "A change of substrate helps too: on AdvBench or HarmBench both labels come from one prompt sampled k times, so the confound goes by construction rather than by control.");
   s.addNotes("The first one is the only one that needs running before deciding anything else. It is one pass and it settles whether the rest is worth doing.");
 }
 
@@ -1075,7 +1078,7 @@ pres.addSection({ title: "What it means" });
     x: M, y: 5.6, w: 1.5, h: 0.028, fill: { color: "E8873F" }, line: { color: "E8873F" },
     objectName: "close-mark",
   });
-  s.addText("Full write-up in ANALYSIS.md  ·  one track only: mbpp, 300 problems, Qwen3.5-4B, reasoning off, greedy.", {
+  s.addText("Corrected numbers in RESULTS.md, the narrative in ANALYSIS.md  ·  one track: mbpp, 300 problems, Qwen3.5-4B, reasoning off, greedy.", {
     x: M, y: 5.82, w: 11.6, h: 0.3, fontSize: 11, color: "7E8FA0", isTextBox: true, margin: 0,
   });
   s.addNotes("Close on what is defensible. The defence result is real and cheap to strengthen, and the tax measurement needs a different design.");
@@ -1085,11 +1088,15 @@ pres.addSection({ title: "What it means" });
 const out = path.join(__dirname, "obfuscation-tax.pptx");
 pres.writeFile({ fileName: out }).then(() => {
   console.log(`wrote ${out} (${n} slides)`);
+  // Without APPLY_THEME the deck still builds; scheme colours fall back to Office's
+  // stock palette. Previously this threw and exited 1 after writing a good file.
+  if (!process.env.APPLY_THEME) {
+    console.log("APPLY_THEME unset, skipping theme colours (see README.md)");
+    return null;
+  }
   const { applyTheme } = require(process.env.APPLY_THEME);
-  return applyTheme(out, THEME);
-}).then(() => {
-  console.log("theme applied");
-}).catch((e) => {
+  return applyTheme(out, THEME).then(() => console.log("theme applied"));
+}).then(() => {}).catch((e) => {
   console.error("FAILED:", e && e.message ? e.message : e);
   process.exit(1);
 });

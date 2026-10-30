@@ -13,6 +13,30 @@ While the model writes an answer it produces a vector of numbers at each layer. 
 linear classifier on those vectors can often tell an honest attempt from deliberate
 failure. That classifier is the probe, and it is the defence.
 
+The question comes out of three results.
+
+Goldowsky-Dill and co-authors showed the defence works against a model that is not
+fighting back. Logistic-regression probes on Llama-3.3-70B-Instruct, read after layer 22
+of 80, score AUROC between 0.96 and 0.999 across their evaluation sets, and at a threshold
+set to 1% false positives on unrelated chat they catch 95 to 99% of deceptive responses.
+Sandbagging is one of those sets. They also report how fragile the setup is: probing two
+layers later drops recall to nearly zero on both insider-trading datasets while ordinary
+classification accuracy stays fine.
+
+Bailey and co-authors showed it can be fooled. Against sparse autoencoders and supervised
+probes alike they drive monitor recall to 0% while keeping a 90% jailbreak rate, and the
+obfuscated activations carry over to probes they never attacked. One limit turned up along
+the way, and it is the sentence this repo grew out of: "on a complex task (writing SQL
+code), obfuscation reduces model performance."
+
+Gupta and Jenner built the strongest version of the attack, finetuning a model with
+reinforcement learning to evade latent-space monitors while holding its black-box
+behaviour steady. Holding it steady needs an explicit quality term in the reward, which is
+its own kind of evidence about what evasion does to an output left alone.
+
+All three ask whether evasion works, and it does. The cost of it shows up twice in passing
+and is measured by nobody.
+
 What is not known is what the fooling costs. The probe reads the same internal state the
 model uses to do the task, so pushing that state around is not a free move. Three things can happen:
 
@@ -46,6 +70,10 @@ This cost is obfuscation tax.
    Evasion that beats only the probe it was aimed at is much weaker than one that
    generalises.
 
+Steps 1 and 2 are gated: at least 40 successful attacks, and a headline AUROC above 0.65,
+before any steering runs. Step 6 varies the layer rather than the probe because that is
+the cheap move for a defender, and because recall is known to be sensitive to it.
+
 The output is one table, one row per dial setting. If detection falls faster than the
 attack does, evasion is cheap, else the gap between them is the tax.
 
@@ -56,6 +84,10 @@ over answer tokens only.
 
 One run so far. `mbpp`, 300 problems, reasoning off, 146 answerable, 73 held out for the
 table. Steering at layer 20, transfer probe at layer 28.
+
+The attack gate failed before any of this: 37 successful attacks against a minimum of 40,
+with the accuracy drop itself at McNemar p = 0.092. The sweep ran anyway, on a held-out
+half holding 20 of those 37, which is why the intervals below are wide.
 
 | alpha | probe L20 | transfer L28 | accuracy drop | monitor | valid rate |
 | --- | --- | --- | --- | --- | --- |
@@ -72,15 +104,18 @@ flip rate on those and is not the same quantity as the drop over the whole track
 The probe score falls by exactly what the steering takes off it. The probe geometry
 predicts a shift of 6.991 scaled units per alpha and the run delivers 7.02 to 7.10,
 leaving a residual under 1.6% of the imposed shift. Nothing in the model's computation
-responded to being pushed.
+responded to being pushed. The same arithmetic fixes the range where the answer is not
+already determined, alpha between 0.94 and 3.22, and the grid above put two of its five
+points inside it.
 
 So an AUROC of 0.000 is overshoot and not evasion. Scored two-sided, on distance from the
 honest median, detection returns to 1.000 at alpha 4 and 8. The one setting that hides is
-alpha 2, at 0.604, and on 25 attacks its confidence interval runs [0.44, 0.71].
+alpha 2, at 0.604, and on 25 attacks its confidence interval runs [0.47, 0.73].
 
 The untouched layer survives. At alpha 2, with the attacked probe down to 0.572, layer 28
 still reads 0.993. Steering layer 20 moves layer 28 by 2.8 per alpha against 7.0 at the
-layer being steered, and no setting beats both layers at once.
+layer being steered, and no setting beats both layers at once: against a defender holding
+two probes and reading them two-sided, the attacker's best alpha still scores 0.993.
 
 The accuracy drop holds between 0.27 and 0.34 across the sweep, which reads as free
 evasion until you look at which problems fail. Overlap with the unsteered failure set
@@ -91,11 +126,18 @@ All of which follows from the probe reading the prompt rather than the behaviour
 109 problems where the sandbagging instruction was in context and the answer still came
 out correct, the probe reads 1.000 held out, and those answers score +7.74 against +7.92
 for real attacks. The sabotage is absent and the probe cannot tell. Subtracting a prompt
-marker does not change behaviour, because it is not the behaviour. The text-only monitor picked up the sabotage
-and not the steering, moving from 0.066 to about 0.13 and staying flat in alpha.
+marker does not change behaviour, because it is not the behaviour. The text-only monitor
+picked up the sabotage and not the steering, moving from 0.066 to about 0.13 and staying
+flat in alpha.
 
-Until the sandbagging instruction leaves the context window, every number above is a fact
-about prompts.
+The 1.000 is inflated rather than empty. Refit within a single prompt, both classes
+generated under the sandbagging instruction and labelled by whether the sabotage landed,
+the probe reads 0.771 at layer 16 out of fold against a shuffled null of 0.50. There is
+real behavioural signal, and it peaks at a layer the attack never touched. Until the
+instruction leaves the context window the headline number is still a fact about prompts.
+
+[`ANALYSIS.md`](ANALYSIS.md) works through how the run went, what it cost us, and what to
+run next.
 
 ## Sandbagging Evals and Monitoring
 
@@ -114,7 +156,6 @@ about prompts.
 [`openai/openai_humaneval`](https://huggingface.co/datasets/openai/openai_humaneval) 
 [`walledai/AdvBench`](https://huggingface.co/datasets/walledai/AdvBench) 
 [`walledai/HarmBench`](https://huggingface.co/datasets/walledai/HarmBench) 
-
 
 ## References
 

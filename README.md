@@ -2,6 +2,10 @@
 
 What does a model give up to hide from an activation probe?
 
+main idea: given a set of non inherently harmful coding tasks , can we inculcate sandbagging somehow ? 
+second question: how to do effective monitors for this tracking ? 
+
+
 ## Motivation
 
 A model can be told to fail on purpose: answer a coding question wrongly while looking
